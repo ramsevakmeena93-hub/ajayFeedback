@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LogOut, Bell, Settings, Sun, Moon, Home,
   CheckCheck, X, User, ChevronDown, Clock,
-  LayoutDashboard, History, BarChart3
+  LayoutDashboard, History, BarChart3, PenLine
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import mitsLogo from "../assets/mits-logo.png";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 const ROLE_CFG = {
   hod:     { label: "HOD",     color: "from-blue-600 to-blue-700",    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",     home: "/hod"     },
@@ -55,6 +56,10 @@ export default function Navbar({ title, subtitle }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showSigModal, setShowSigModal] = useState(false);
+  const [sigPreview, setSigPreview] = useState(null);
+  const [sigSaving, setSigSaving] = useState(false);
+  const sigRef = useRef();
 
   const userMenuRef = useRef();
   const notifRef = useRef();
@@ -77,7 +82,7 @@ export default function Navbar({ title, subtitle }) {
         .catch(() => {});
     }
     fetchNotifs();
-    const iv = setInterval(fetchNotifs, 20000);
+    const iv = setInterval(fetchNotifs, 60000);
     return () => clearInterval(iv);
   }, [token, api]);
 
@@ -108,8 +113,29 @@ export default function Navbar({ title, subtitle }) {
       } catch {}
     }
     setNotifOpen(false);
-    if (user?.role === "faculty") navigate(n.type === "vc_approved" ? "/faculty/history" : "/faculty");
-    else if (user?.role === "hod") navigate(["vc_approved", "vc_rejected"].includes(n.type) ? "/hod/history" : "/hod");
+    const ws = user?.activeWorkspace || user?.role;
+    if (ws === "faculty") navigate(n.type === "vc_approved" ? "/faculty/history" : "/faculty");
+    else if (ws === "hod") navigate(["vc_approved", "vc_rejected"].includes(n.type) ? "/hod/history" : "/hod");
+  }
+
+  // Signature handlers (for HOD/Faculty in navbar)
+  function handleSigFile(e) {
+    const file = e.target.files[0]; if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Please upload an image file");
+    if (file.size > 2 * 1024 * 1024) return toast.error("Image must be under 2MB");
+    const reader = new FileReader();
+    reader.onload = (ev) => setSigPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+  async function handleSigSave() {
+    if (!sigPreview) return;
+    setSigSaving(true);
+    try {
+      await api().post("/api/auth/signature", { signatureImage: sigPreview });
+      toast.success("Signature saved!");
+      setShowSigModal(false);
+    } catch { toast.error("Failed to save signature"); }
+    finally { setSigSaving(false); }
   }
 
   function handleLogout() {
@@ -118,12 +144,13 @@ export default function Navbar({ title, subtitle }) {
     toast.success("Logged out successfully");
   }
 
-  const role = user?.role || "hod";
+  const role = user?.activeWorkspace || user?.role || "hod";
   const cfg = ROLE_CFG[role] || ROLE_CFG.hod;
   const navLinks = NAV_LINKS[role] || [];
   const initials = user?.name ? user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U";
 
   return (
+    <>
     <nav className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-15" style={{ height: "60px" }}>
@@ -172,6 +199,9 @@ export default function Navbar({ title, subtitle }) {
 
           {/* Right — Actions */}
           <div className="flex items-center gap-1.5">
+
+            {/* Workspace Switcher — only shows for multi-role users */}
+            <WorkspaceSwitcher />
 
             {/* Theme toggle */}
             <button
@@ -252,55 +282,71 @@ export default function Navbar({ title, subtitle }) {
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                className="flex items-center gap-2.5 pl-1.5 pr-2.5 py-1.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
                 {/* Avatar */}
                 {user?.profilePhoto ? (
-                  <img src={user.profilePhoto} alt={user.name} className="w-7 h-7 rounded-lg object-cover" />
+                  <img src={user.profilePhoto} alt={user.name} className="w-8 h-8 rounded-xl object-cover shadow-sm" />
                 ) : (
-                  <div className={`w-7 h-7 bg-gradient-to-br ${cfg.color} rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm`}>
+                  <div className={`w-8 h-8 bg-gradient-to-br ${cfg.color} rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-sm`}>
                     {initials}
                   </div>
                 )}
-                <div className="hidden sm:block text-left">
-                  <p className="text-xs font-semibold text-slate-900 dark:text-white leading-tight max-w-[100px] truncate">
-                    {user?.name?.split(" ")[0] || "User"}
-                  </p>
-                  <p className={`text-[10px] font-semibold ${cfg.badge} px-1.5 py-0.5 rounded-md inline-block`}>
+                  <div className="hidden sm:block text-left whitespace-nowrap">
+                    <p className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">
+                      {user?.name || "User"}
+                    </p>
+                    <p className={`text-[9px] font-bold ${cfg.badge} px-1.5 py-0.5 rounded-md inline-block mt-0.5`}>
                     {cfg.label}
                   </p>
                 </div>
-                <ChevronDown size={13} className={`text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={12} className={`text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
               </button>
 
               {/* Dropdown */}
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-scale-in overflow-hidden z-50">
-                  {/* User info */}
-                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                    <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">{user?.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
-                    {user?.department && (
-                      <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5 truncate">{user.department}</p>
-                    )}
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-scale-in overflow-hidden z-50">
+                  {/* Profile header */}
+                  <div className="px-5 py-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      {/* Large avatar */}
+                      {user?.profilePhoto ? (
+                        <img src={user.profilePhoto} alt={user.name}
+                          className="w-12 h-12 rounded-2xl object-cover shadow-md" />
+                      ) : (
+                        <div className={`w-12 h-12 bg-gradient-to-br ${cfg.color} rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-md`}>
+                          {initials}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900 dark:text-white text-sm truncate leading-tight">{user?.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{user?.email}</p>
+                        {user?.department && (
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold mt-1 leading-tight line-clamp-2">{user.department}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <span className={`text-[10px] font-bold ${cfg.badge} px-2.5 py-1 rounded-lg inline-flex items-center gap-1`}>
+                        {cfg.label}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="p-1.5 space-y-0.5">
-                    <a href={cfg.home}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                      <LayoutDashboard size={15} className="text-slate-400" /> Dashboard
-                    </a>
-                    <button
-                      onClick={() => { setIsDark(d => !d); setUserMenuOpen(false); }}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left">
-                      {isDark ? <Sun size={15} className="text-slate-400" /> : <Moon size={15} className="text-slate-400" />}
-                      {isDark ? "Light Mode" : "Dark Mode"}
-                    </button>
-                  </div>
+                  {/* Actions */}
+                  {(user?.role === "hod" || user?.role === "faculty" || user?.role === "vc") && (
+                    <div className="p-2">
+                      <button
+                        onClick={() => { setSigPreview(user?.signatureImage || null); setShowSigModal(true); setUserMenuOpen(false); }}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left">
+                        <PenLine size={15} className="text-indigo-500" /> Upload / Edit Signature
+                      </button>
+                    </div>
+                  )}
 
-                  <div className="p-1.5 border-t border-slate-100 dark:border-slate-800">
+                  <div className={`p-2 ${(user?.role === "hod" || user?.role === "faculty" || user?.role === "vc") ? "border-t border-slate-100 dark:border-slate-800" : ""}`}>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors w-full text-left font-medium">
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors w-full text-left font-semibold">
                       <LogOut size={15} /> Sign Out
                     </button>
                   </div>
@@ -323,5 +369,49 @@ export default function Navbar({ title, subtitle }) {
         </div>
       )}
     </nav>
+
+    {/* Signature Modal — HOD/Faculty, triggered from Navbar */}
+    {showSigModal && (user?.role === "hod" || user?.role === "faculty") && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-scale-in overflow-hidden">
+          <div className="px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-violet-50">
+            <h2 className="font-bold text-indigo-900 text-lg">Upload / Edit Signature</h2>
+            <p className="text-xs text-indigo-600 mt-0.5">This will appear on all feedback reports</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div
+              onClick={() => sigRef.current.click()}
+              className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
+                sigPreview ? "border-indigo-400 bg-indigo-50" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50"
+              }`}
+            >
+              {sigPreview ? (
+                <div>
+                  <img src={sigPreview} alt="Signature preview" className="max-h-24 mx-auto object-contain mb-2" />
+                  <p className="text-xs text-indigo-600 font-medium">Signature loaded — click to change</p>
+                </div>
+              ) : (
+                <div>
+                  <PenLine className="mx-auto text-slate-400 mb-2" size={32} />
+                  <p className="text-sm font-medium text-slate-600">Click to upload signature image</p>
+                  <p className="text-xs text-slate-400 mt-1">PNG or JPG · Max 2MB · White background recommended</p>
+                </div>
+              )}
+              <input ref={sigRef} type="file" accept="image/*" className="hidden" onChange={handleSigFile} />
+            </div>
+            <p className="text-xs text-slate-400 text-center">Your signature will appear on all feedback reports</p>
+          </div>
+          <div className="px-6 py-4 border-t bg-slate-50 flex gap-3 justify-end">
+            <button onClick={() => setShowSigModal(false)} className="btn btn-secondary">Cancel</button>
+            <button onClick={handleSigSave} disabled={!sigPreview || sigSaving}
+              className="btn btn-primary flex items-center gap-2 disabled:opacity-50">
+              <PenLine size={14} />
+              {sigSaving ? "Saving..." : "Save Signature"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }

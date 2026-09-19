@@ -59,7 +59,7 @@ router.post('/process-one', authMiddleware, async (req, res) => {
     if (!result) {
       // Download and analyze — retry once on rate limit
       let response;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= 4; attempt++) {
         try {
           response = await axios.get(convertDriveLink(pdfLink), {
             responseType: 'arraybuffer', timeout: 30000,
@@ -67,9 +67,15 @@ router.post('/process-one', authMiddleware, async (req, res) => {
           });
           break; // success
         } catch (err) {
-          if (attempt < 3 && (err.response?.status === 429 || err.response?.status === 503)) {
-            await new Promise(r => setTimeout(r, 3000 * attempt));
+          const status = err.response?.status;
+          if (attempt < 4 && (status === 429 || status === 503)) {
+            // Exponential backoff with jitter: 5s, 10s, 20s
+            const delay = (5000 * attempt) + Math.random() * 2000;
+            await new Promise(r => setTimeout(r, delay));
             continue;
+          }
+          if (status === 429) {
+            throw new Error('Google Drive rate limit reached. Please wait a minute and try again.');
           }
           throw err;
         }
@@ -96,6 +102,9 @@ router.post('/process-one', authMiddleware, async (req, res) => {
       attentionCount: result.attentionCount,
       ffiScore: result.ffiScore ?? meta.ffiScore ?? null,
       responseCount: req.body.responseCount ?? result.responseCount ?? meta.responseCount ?? null,
+      rawStudentComments: result.rawStudentComments || [],
+      commentCategories: result.commentCategories || {},
+      commentPercentages: result.commentPercentages || {},
       status: 'processed',
       analyzedAt: result.analyzedAt
     });
@@ -209,6 +218,9 @@ router.post('/upload-pdfs', authMiddleware, pdfUpload.array('pdfs', 50), async (
           programme: pdfMeta.programme || report.programme || '',
           semester: pdfMeta.semester || report.semester || '',
           ffiScore: result.ffiScore ?? pdfMeta.ffiScore ?? null,
+          rawStudentComments: result.rawStudentComments || [],
+          commentCategories: result.commentCategories || {},
+          commentPercentages: result.commentPercentages || {},
           status: 'processed'
         });
       })

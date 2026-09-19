@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap } from "lucide-react";
-
-const STATUS_CFG = {
+import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown } from "lucide-react";const STATUS_CFG = {
   processed:        { color:"bg-emerald-100 text-emerald-700 border-emerald-200", icon:CheckCircle2, label:"Processed" },
   pending:          { color:"bg-slate-100 text-slate-600 border-slate-200",       icon:Clock,        label:"Pending" },
   error:            { color:"bg-red-100 text-red-700 border-red-200",             icon:AlertCircle,  label:"Error" },
@@ -123,16 +121,6 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
               ) : (
                 <p className="text-xs text-slate-400 italic">No PDF link</p>
               )}
-              <div className="mt-3 space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Appreciation</span>
-                  <span className="text-emerald-600 font-semibold">{report.appreciationCount || 0} comments</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Needs Attention</span>
-                  <span className="text-amber-600 font-semibold">{report.attentionCount || 0} comments</span>
-                </div>
-              </div>
             </div>
 
             {/* Card 4: FFI Score */}
@@ -159,7 +147,85 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
             </div>
           </div>
 
-          {/* Analysis section removed */}
+          {/* Comment Percentages */}
+          {pctEntries.length > 0 && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-5 mb-6">
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-3">📊 Response Breakdown</p>
+              <div className="space-y-2.5">
+                {pctEntries.map(([label, pct]) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-blue-800 dark:text-blue-300 w-24 shrink-0">{label}</span>
+                    <div className="flex-1 bg-blue-100 dark:bg-blue-900/40 rounded-full h-2.5">
+                      <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
+                    </div>
+                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300 w-12 text-right">{pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Comments Analysis — Separate Sections */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            {/* Appreciation (Good Comments) */}
+            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ThumbsUp size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Appreciation</span>
+                </div>
+                <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-lg">{appComments.length}</span>
+              </div>
+              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                {appComments.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-2 text-center">No appreciation comments</p>
+                ) : appComments.map((t, i) => (
+                  <div key={i} className="flex gap-2 text-xs text-slate-700 dark:text-slate-300 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg px-3 py-2 leading-snug">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                    <span>{t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Needs Attention (Bad Comments) */}
+            <div className="rounded-2xl border border-amber-200 dark:border-amber-800 overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Needs Attention</span>
+                </div>
+                <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-lg">{attComments.length}</span>
+              </div>
+              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                {attComments.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-2 text-center">No concerns raised</p>
+                ) : attComments.map((t, i) => (
+                  <div key={i} className="flex gap-2 text-xs text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900 rounded-lg px-3 py-2 leading-snug">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                    <span>{t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Raw Student Comments — Collapsible */}
+          {report.rawStudentComments && report.rawStudentComments.length > 0 && (
+            <details className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-6 group">
+              <summary className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 cursor-pointer flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <span>📝 All Student Comments ({report.rawStudentComments.length})</span>
+                <ChevronDown size={14} className="group-open:rotate-180 transition-transform" />
+              </summary>
+              <div className="p-3 space-y-1 max-h-64 overflow-y-auto">
+                {report.rawStudentComments.map((t, i) => (
+                  <div key={i} className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-lg px-3 py-1.5 leading-snug">
+                    {i + 1}. {t}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
 
           {/* Action Taken */}
           {report.actionTaken && (

@@ -4,13 +4,13 @@ import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import ReportDetailModal from "../components/ReportDetailModal";
 import {
-  Archive, Download, Filter, ChevronLeft, ChevronRight,
+  Archive, Download, Filter, Eye, Search,
   BookOpen, Users, TrendingUp, CheckCircle, ChevronDown, ChevronUp, FileText
 } from "lucide-react";
 
 const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: currentYear - 2025 + 6 }, (_, i) => String(2025 + i));
 const SESSIONS = [
   { value: "jul-dec", label: "Jul – Dec (Odd Semester)" },
   { value: "jan-may", label: "Jan – Jun (Even Semester)" },
@@ -42,13 +42,20 @@ function ffiBg(avg) {
 }
 
 // ── Submission card with semester-wise download ───────────────
-function SubmissionCard({ sub, token }) {
+function SubmissionCard({ sub, token, onViewReport, filterFaculty }) {
   const { user } = useAuth();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [downloading, setDownloading] = useState(null); // semester string or "all"
 
+  useEffect(() => {
+    if (filterFaculty) setExpanded(true);
+  }, [filterFaculty]);
+
   // Group reports by semester
-  const reports = sub.reports || [];
+  const reports = (sub.reports || []).filter(r => 
+    !filterFaculty || (r.facultyName && r.facultyName.toLowerCase().includes(filterFaculty.toLowerCase()))
+  );
+  if (reports.length === 0) return null;
   const semMap = {};
   reports.forEach(r => {
     const s = r.semester || "Unknown";
@@ -107,10 +114,12 @@ function SubmissionCard({ sub, token }) {
                 <CheckCircle size={10}/> Approved
               </span>
             </div>
-            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-              {sub.academicYear && <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">📅 {sub.academicYear}</span>}
-              {sub.session && <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">🗓 {sub.session === "jan-may" ? "Jan–Jun" : "Jul–Dec"}</span>}
-              {user?.role !== "faculty" && <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">📋 {reports.length} reports</span>}
+            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+              {sub.academicYear && <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">📅 {sub.academicYear}</span>}
+              {sub.session && <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">🗓 {sub.session === "jan-may" ? "Jan–Jun (Even)" : sub.session === "jul-dec" ? "Jul–Dec (Odd)" : sub.session}</span>}
+              {sub.department && <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">🏢 {sub.department}</span>}
+              {sub.feedbackFormNo && <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">📄 Form {sub.feedbackFormNo}</span>}
+              {user?.role !== "faculty" && <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">📋 {reports.length} reports</span>}
               <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">{new Date(sub.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</span>
             </div>
           </div>
@@ -134,7 +143,7 @@ function SubmissionCard({ sub, token }) {
           {semesters.length > 0 && (
             <button onClick={() => setExpanded(e => !e)}
               className="flex items-center gap-1 px-3 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors">
-              Sem-wise {expanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+              {expanded ? "Hide Details" : "View Details"} {expanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
             </button>
           )}
         </div>
@@ -200,72 +209,105 @@ function SubmissionCard({ sub, token }) {
             </div>
           </div>
 
-          {/* Detailed Records Table */}
-          <div className="pt-2">
-            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Detailed Report Records</p>
-            <div className="overflow-hidden border border-slate-200/80 dark:border-slate-700/80 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700/60">
-                    <tr>
-                      {user?.role !== "faculty" && <th className="px-4 py-3">Faculty Member</th>}
-                      <th className="px-4 py-3">Subject Code</th>
-                      <th className="px-4 py-3">Programme</th>
-                      <th className="px-4 py-3 text-center">Sem</th>
-                      <th className="px-4 py-3 text-center">FFI Score</th>
-                      <th className="px-4 py-3 text-center">AI Analysis</th>
-                      <th className="px-4 py-3">HOD Remarks / Actions</th>
-                      {user?.role === "faculty" && <th className="px-4 py-3 text-center">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-700 dark:text-slate-200">
-                    {reports.map(r => (
-                      <tr key={r._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors align-top">
-                        {user?.role !== "faculty" && (
-                          <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">{r.facultyName || "—"}</td>
-                        )}
-                        <td className="px-4 py-3 font-mono font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{r.subjectCode || "—"}</td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-450">{r.programme || "—"}</td>
-                        <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-400 font-semibold">{r.semester || "—"}</td>
-                        <td className="px-4 py-3 text-center font-bold">
-                          {r.ffiScore != null ? (
-                            <span className={`px-2 py-0.5 rounded-lg border text-xs ${ffiBg(r.ffiScore)}`}>{r.ffiScore.toFixed(2)}</span>
-                          ) : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 font-semibold px-2 py-0.5 rounded-full text-[10px] border border-indigo-100 dark:border-indigo-900/40">
-                              Appr: {r.appreciationCount || 0}
-                            </span>
-                            <span className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 font-semibold px-2 py-0.5 rounded-full text-[10px] border border-amber-100 dark:border-amber-900/40">
-                              Attn: {r.attentionCount || 0}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 max-w-[240px]">
-                          <div className="space-y-1">
-                            {r.hodRemarks ? (
-                              <p className="text-[10px] text-slate-600 dark:text-slate-400"><span className="font-semibold text-slate-700 dark:text-slate-350">Remarks:</span> {r.hodRemarks}</p>
-                            ) : null}
-                            {r.actionTaken ? (
-                              <p className="text-[10px] text-slate-650 dark:text-slate-400"><span className="font-semibold text-slate-750 dark:text-slate-350">Action Taken:</span> {r.actionTaken}</p>
-                            ) : null}
-                            {!r.hodRemarks && !r.actionTaken && <span className="text-slate-300 dark:text-slate-700">—</span>}
-                          </div>
-                        </td>
-                        {user?.role === "faculty" && (
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <button onClick={() => download(r.semester)} className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-650 dark:text-indigo-400 hover:text-indigo-750 text-[10px] font-bold rounded-lg transition-colors border border-indigo-100 dark:border-indigo-900 flex items-center gap-1 mx-auto">
-                              <Download size={11}/> PDF
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Detailed Records Table (Grouped by Semester) */}
+          <div className="pt-4 space-y-6">
+            {semesters.map(sem => (
+              <div key={sem}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Semester {sem}
+                  </h4>
+                  <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">
+                    {semMap[sem].length} reports
+                  </span>
+                </div>
+                <div className="overflow-hidden border border-slate-200/80 dark:border-slate-700/80 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700/60">
+                        <tr>
+                          {user?.role !== "faculty" && <th className="px-4 py-3">Faculty Member</th>}
+                          <th className="px-4 py-3">Subject Code</th>
+                          <th className="px-4 py-3">Programme</th>
+                          <th className="px-4 py-3 text-center">FFI Score</th>
+                          <th className="px-4 py-3 text-center">Resp.</th>
+                          <th className="px-4 py-3 text-left">AI Analysis</th>
+                          <th className="px-4 py-3">HOD Remarks / Actions</th>
+                          <th className="px-4 py-3 text-center">View</th>
+                          {user?.role === "faculty" && <th className="px-4 py-3 text-center">Action</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-700 dark:text-slate-200">
+                        {semMap[sem].map(r => (
+                          <tr key={r._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors align-top">
+                            {user?.role !== "faculty" && (
+                              <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">{r.facultyName || "—"}</td>
+                            )}
+                            <td className="px-4 py-3 font-mono font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{r.subjectCode || "—"}</td>
+                            <td className="px-4 py-3 text-slate-500 dark:text-slate-450">{r.programme || "—"}</td>
+                            <td className="px-4 py-3 text-center font-bold">
+                              {r.ffiScore != null ? (
+                                <span className={`px-2 py-0.5 rounded-lg border text-xs ${ffiBg(r.ffiScore)}`}>{r.ffiScore.toFixed(2)}</span>
+                              ) : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-center font-bold text-slate-500 text-xs">
+                              {r.responseCount ?? r.totalResponses ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 min-w-[200px] max-w-[300px]">
+                              <div className="space-y-3">
+                                {r.appreciation?.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Appreciation</p>
+                                    {r.appreciation.map((c, i) => (
+                                      <p key={`app-${i}`} className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">• {c}</p>
+                                    ))}
+                                  </div>
+                                )}
+                                {r.commentsNeedingAttention?.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Needs Attention</p>
+                                    {r.commentsNeedingAttention.map((c, i) => (
+                                      <p key={`att-${i}`} className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">• {c}</p>
+                                    ))}
+                                  </div>
+                                )}
+                                {(!r.appreciation?.length && !r.commentsNeedingAttention?.length) && (
+                                  <span className="text-slate-300 dark:text-slate-600">—</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 max-w-[240px]">
+                              <div className="space-y-1">
+                                {r.hodRemarks ? (
+                                  <p className="text-[10px] text-slate-600 dark:text-slate-400"><span className="font-semibold text-slate-700 dark:text-slate-350">Remarks:</span> {r.hodRemarks}</p>
+                                ) : null}
+                                {r.actionTaken ? (
+                                  <p className="text-[10px] text-slate-650 dark:text-slate-400"><span className="font-semibold text-slate-750 dark:text-slate-350">Action Taken:</span> {r.actionTaken}</p>
+                                ) : null}
+                                {!r.hodRemarks && !r.actionTaken && <span className="text-slate-300 dark:text-slate-700">—</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <button onClick={() => onViewReport(r)} className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg transition-colors border border-indigo-100 flex items-center gap-1 mx-auto">
+                                <Eye size={11}/> View
+                              </button>
+                            </td>
+                            {user?.role === "faculty" && (
+                              <td className="px-4 py-3 text-center whitespace-nowrap">
+                                <button onClick={() => download(r.semester)} className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-650 dark:text-indigo-400 hover:text-indigo-750 text-[10px] font-bold rounded-lg transition-colors border border-indigo-100 dark:border-indigo-900 flex items-center gap-1 mx-auto">
+                                  <Download size={11}/> PDF
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
@@ -280,7 +322,9 @@ export default function History() {
   const [filterYear, setFilterYear]   = useState("");
   const [filterSession, setFilterSession] = useState("");
   const [filterDept, setFilterDept]   = useState("");
-  const [yearScrollIdx, setYearScrollIdx] = useState(0);
+  const [filterFaculty, setFilterFaculty] = useState("");
+  const [yearInput, setYearInput]     = useState("");
+  const [viewReport, setViewReport]   = useState(null);
   const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
 
   useEffect(() => { fetchHistory(); }, []);
@@ -303,10 +347,16 @@ export default function History() {
     ? [...new Set([...DEPARTMENTS, ...submissions.map(s => s.hodId?.department || s.department).filter(Boolean)])].sort()
     : DEPARTMENTS;
 
+  const allFacultyList = [...new Set(submissions.flatMap(s => (s.reports || []).map(r => r.facultyName)).filter(Boolean))].sort();
+
   const filtered = submissions.filter(s => {
     if (filterYear    && s.academicYear !== filterYear) return false;
     if (filterSession && s.session !== filterSession)   return false;
     if (filterDept    && (s.hodId?.department || s.department) !== filterDept) return false;
+    if (filterFaculty) {
+      const hasMatch = (s.reports || []).some(r => r.facultyName && r.facultyName.toLowerCase().includes(filterFaculty.toLowerCase()));
+      if (!hasMatch) return false;
+    }
     return true;
   });
 
@@ -370,26 +420,33 @@ export default function History() {
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Filter Records</span>
           </div>
           <div className="flex flex-wrap gap-4 items-end">
-            {/* Year scroller */}
+            {/* Year picker — real input, no 10-year limit */}
             <div>
               <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Academic Year</label>
-              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1.5">
-                <button onClick={() => setYearScrollIdx(i => Math.max(0, i-1))} disabled={yearScrollIdx===0}
-                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors">
-                  <ChevronLeft size={14}/>
-                </button>
-                <div className="flex gap-1">
-                  {YEARS.slice(yearScrollIdx, yearScrollIdx+5).map(y => (
-                    <button key={y} onClick={() => setFilterYear(filterYear===y?"":y)}
-                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${filterYear===y?"bg-indigo-600 text-white shadow-sm":"text-slate-600 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-700"}`}>
-                      {y}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setYearScrollIdx(i => Math.min(YEARS.length-5, i+1))} disabled={yearScrollIdx>=YEARS.length-5}
-                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors">
-                  <ChevronRight size={14}/>
-                </button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="2000"
+                  max="2100"
+                  placeholder={`e.g. ${currentYear}`}
+                  value={yearInput}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setYearInput(v);
+                    if (v.length === 4 && !isNaN(v)) {
+                      const yr = parseInt(v);
+                      setFilterYear(`${yr}-${yr + 1}`);
+                    } else if (v === "") {
+                      setFilterYear("");
+                    }
+                  }}
+                  className="px-3 py-2 w-28 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+                {filterYear && (
+                  <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1 rounded-lg">
+                    {filterYear}
+                  </span>
+                )}
               </div>
             </div>
             {/* Session */}
@@ -401,6 +458,21 @@ export default function History() {
                 {SESSIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
+            {/* Faculty Search */}
+            {user?.role !== "faculty" && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Faculty Name</label>
+                <div className="relative">
+                  <select value={filterFaculty} onChange={e => setFilterFaculty(e.target.value)}
+                    className="px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-200 w-48 appearance-none"
+                  >
+                    <option value="">All Faculty</option>
+                    {allFacultyList.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
             {/* Department — VC only */}
             {user?.role === "vc" && (
               <div>
@@ -412,8 +484,8 @@ export default function History() {
                 </select>
               </div>
             )}
-            {(filterYear || filterSession || filterDept) && (
-              <button onClick={() => { setFilterYear(""); setFilterSession(""); setFilterDept(""); }}
+            {(filterYear || filterSession || filterDept || filterFaculty) && (
+              <button onClick={() => { setFilterYear(""); setFilterSession(""); setFilterDept(""); setYearInput(""); setFilterFaculty(""); }}
                 className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-2 rounded-xl hover:bg-red-50 transition-colors">
                 Clear
               </button>
@@ -447,7 +519,7 @@ export default function History() {
                 </div>
                 <div className="space-y-3">
                   {subs.map(sub => (
-                    <SubmissionCard key={sub._id} sub={sub} token={token}/>
+                    <SubmissionCard key={sub._id} sub={sub} token={token} onViewReport={setViewReport} filterFaculty={filterFaculty} />
                   ))}
                 </div>
               </div>
@@ -456,6 +528,14 @@ export default function History() {
         )}
       </main>
       <Footer />
+
+      {/* Report Detail Modal */}
+      {viewReport && (
+        <ReportDetailModal
+          report={viewReport}
+          onClose={() => setViewReport(null)}
+        />
+      )}
     </div>
   );
 }

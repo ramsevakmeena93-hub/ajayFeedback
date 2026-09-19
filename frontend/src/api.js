@@ -1,14 +1,45 @@
 import axios from 'axios';
 
-// In production (Vercel), VITE_API_URL points to Railway backend.
-// Falls back to the known Railway URL so the app works even without the env var.
-// In dev, Vite proxy handles /api → localhost:5000 (baseURL stays empty).
+// Base URL — empty in dev (Vite proxy handles /api → localhost:5000)
 const isProd = import.meta.env.PROD;
 const baseURL = import.meta.env.VITE_API_URL
   || (isProd ? 'https://feedbackbackend-production-db19.up.railway.app' : '');
 
-if (baseURL) {
-  axios.defaults.baseURL = baseURL;
-}
+// ── Set global default so ALL axios calls (even raw `import axios from 'axios'`)
+// use the correct backend URL in production. Without this, components like
+// Login, Register, FacultyDashboard, HODDashboard, etc. would call relative
+// paths that hit the frontend domain instead of the backend. ──────────────────
+axios.defaults.baseURL = baseURL;
 
-export default axios;
+const api = axios.create({ baseURL });
+
+// ── Request interceptor — attach JWT from localStorage automatically ─────────
+// This means every api.get/post/patch/delete call in admin sections
+// automatically sends the correct Authorization header without any extra code.
+api.interceptors.request.use(config => {
+  try {
+    const stored = localStorage.getItem('auth');
+    if (stored) {
+      const { token } = JSON.parse(stored);
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore — bad localStorage value
+  }
+  return config;
+});
+
+// ── Response interceptor — auto-logout on 401 ───────────────────────────────
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      // Token expired / invalid — clear auth and reload to login
+      localStorage.removeItem('auth');
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
+export default api;

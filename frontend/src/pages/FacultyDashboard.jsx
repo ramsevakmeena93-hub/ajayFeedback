@@ -549,6 +549,11 @@ export default function FacultyDashboard() {
 
   const pending = reports.filter(r => r.status === 'sent_to_faculty');
   const acknowledged = reports.filter(r => r.status === 'faculty_approved');
+  const sortedReports = [...reports].sort((a, b) => {
+    if (a.status === 'sent_to_faculty' && b.status !== 'sent_to_faculty') return -1;
+    if (a.status !== 'sent_to_faculty' && b.status === 'sent_to_faculty') return 1;
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col w-full text-slate-800 dark:text-slate-100 transition-colors duration-200">
@@ -599,9 +604,8 @@ export default function FacultyDashboard() {
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-xl p-1 w-fit flex-wrap border border-slate-200 dark:border-slate-800">
           {[
-            { id: 'reports',  label: `Reports (${reports.length})` },
+            { id: 'reports',  label: pending.length > 0 ? `Reports (${pending.length} Pending)` : `Reports (${reports.length})` },
             { id: 'analysis', label: '📈 Analytics & Insights' },
-            { id: 'records',  label: 'Historical Records' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === tab.id ? "bg-white dark:bg-slate-800 shadow text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400 hover:text-slate-700"}`}>
@@ -629,11 +633,9 @@ export default function FacultyDashboard() {
                   </div>
                 ) : (
                   <div className="card overflow-hidden">
-                    {pending.length > 0 && (
-                      <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200">
-                        <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">⏳ Pending Review — {pending.length} report{pending.length>1?"s":""} need your acknowledgment</p>
-                      </div>
-                    )}
+                    <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200">
+                      <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">⏳ Pending Review — {pending.length} report{pending.length>1?"s":""} need your acknowledgment</p>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="table-header">
@@ -653,7 +655,7 @@ export default function FacultyDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {reports.map((report, idx) => {
+                          {sortedReports.map((report, idx) => {
                             const approved = report.status === 'faculty_approved';
                             const pcts = report.commentPercentages || {};
                             const pctEntries = Object.entries(pcts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
@@ -708,10 +710,15 @@ export default function FacultyDashboard() {
                                     : <span className="badge-amber flex items-center gap-1 justify-center"><Clock size={10}/>Pending</span>}
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                  {approved && (
+                                  {approved ? (
                                     <p className="text-xs text-slate-400">
                                       {report.facultyAcknowledgedAt ? new Date(report.facultyAcknowledgedAt).toLocaleDateString('en-IN') : 'Done'}
                                     </p>
+                                  ) : (
+                                    <button onClick={() => handleAcknowledge(report._id)} disabled={acknowledging === report._id}
+                                      className="btn btn-success btn-sm whitespace-nowrap px-3 text-xs flex items-center justify-center gap-1 mx-auto">
+                                      <CheckCircle size={12} /> {acknowledging === report._id ? '...' : 'Approve'}
+                                    </button>
                                   )}
                                 </td>
                               </tr>
@@ -743,60 +750,6 @@ export default function FacultyDashboard() {
               )
             )}
 
-            {/* RECORDS TAB */}
-            {activeTab === 'records' && (
-              <div className="card overflow-hidden">
-                <div className="px-5 py-3 border-b bg-slate-50">
-                  <p className="section-title">All Records — Year & Semester Wise</p>
-                </div>
-                {reports.length === 0 ? (
-                  <div className="p-12 text-center text-slate-400">No records found</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="table-header">
-                        <tr>
-                          <th className="px-4 py-3 text-left">Year</th>
-                          <th className="px-4 py-3 text-left">Semester</th>
-                          <th className="px-4 py-3 text-left">Subject</th>
-                          <th className="px-4 py-3 text-left">Programme</th>
-                          <th className="px-4 py-3 text-center">FFI</th>
-                          <th className="px-4 py-3 text-center">Appreciation</th>
-                          <th className="px-4 py-3 text-center">Attention</th>
-                          <th className="px-4 py-3 text-left">Status</th>
-                          <th className="px-4 py-3 text-left">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {reports.map(r => (
-                          <tr key={r._id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 font-medium text-slate-700">{r.academicYear || '—'}</td>
-                            <td className="px-4 py-3 text-slate-600">Sem {r.semester || '—'}</td>
-                            <td className="px-4 py-3 font-mono text-xs text-slate-600">{r.subjectCode || '—'}</td>
-                            <td className="px-4 py-3 text-slate-500 text-xs">{r.programme || '—'}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`font-bold text-sm ${r.ffiScore >= 4 ? 'text-green-700' : r.ffiScore >= 3 ? 'text-amber-600' : 'text-red-600'}`}>
-                                {r.ffiScore?.toFixed(2) || '—'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center"><span className="badge-red">{r.appreciationCount || 0}</span></td>
-                            <td className="px-4 py-3 text-center"><span className="badge-yellow">{r.attentionCount || 0}</span></td>
-                            <td className="px-4 py-3">
-                              <span className={r.status === 'faculty_approved' ? 'badge-green' : 'badge-blue'}>
-                                {r.status?.replace(/_/g, ' ')}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-slate-400">
-                              {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN') : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>

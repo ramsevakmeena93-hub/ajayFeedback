@@ -1,127 +1,107 @@
 import React, { useState } from 'react';
-import { toast } from 'react-hot-toast';
-import { Shield, Plus, MoreVertical, Check, X, ShieldAlert, FileText, Settings, Users, Building } from 'lucide-react';
+import { Shield, Plus, Check, X, ShieldAlert, Copy, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const RolePermissions = ({ isDark }) => {
+export default function RolePermissions() {
   const [roles, setRoles] = useState([
-    { id: 'admin', name: 'Admin', type: 'system', users: 3 },
-    { id: 'vc', name: 'Vice Chancellor', type: 'system', users: 1 },
-    { id: 'hod', name: 'HOD', type: 'system', users: 12 },
-    { id: 'faculty', name: 'Faculty', type: 'system', users: 156 },
-    { id: 'dean', name: 'Dean', type: 'custom', users: 4 },
+    { id: 'admin', name: 'Admin', desc: 'Full System Control & System Config', usersCount: 2, isBuiltin: true },
+    { id: 'vc', name: 'Vice Chancellor (VC)', desc: 'Executive Oversight & Signatures', usersCount: 1, isBuiltin: true },
+    { id: 'hod', name: 'HOD', desc: 'Department Head & Faculty Oversight', usersCount: 4, isBuiltin: true },
+    { id: 'faculty', name: 'Faculty', desc: 'Teaching Staff & Self Feedback', usersCount: 18, isBuiltin: true },
   ]);
-  const [activeRole, setActiveRole] = useState('admin');
 
-  const permissionGroups = [
-    {
-      group: 'User Management',
-      icon: Users,
-      perms: [
-        { id: 'view_users', name: 'View Users', desc: 'Can view user list' },
-        { id: 'edit_users', name: 'Edit Users', desc: 'Can modify user details' },
-        { id: 'delete_users', name: 'Delete Users', desc: 'Can permanently delete users' },
-      ]
-    },
-    {
-      group: 'Content & Reports',
-      icon: FileText,
-      perms: [
-        { id: 'view_feedback', name: 'View Feedback', desc: 'Can view submitted feedback' },
-        { id: 'export_reports', name: 'Export Reports', desc: 'Can download CSV/PDF reports' },
-      ]
-    },
-    {
-      group: 'System Settings',
-      icon: Settings,
-      perms: [
-        { id: 'manage_settings', name: 'Manage Settings', desc: 'Can change global settings' },
-        { id: 'view_audit', name: 'View Audit Logs', desc: 'Can see system activity logs' },
-      ]
-    }
-  ];
+  const [selectedRole, setSelectedRole] = useState(roles[0]);
+  const [permissions, setPermissions] = useState({
+    'can_view_dashboard': 'allow',
+    'can_manage_users': 'allow',
+    'can_assign_hod': 'allow',
+    'can_manage_signatures': 'allow',
+    'can_export_reports': 'allow',
+    'can_view_analytics': 'allow',
+    'can_edit_settings': 'allow',
+    'can_moderate_feedback': 'allow',
+  });
 
-  const handleSave = () => {
-    toast.success('Permissions saved successfully');
-  };
+  function togglePermission(key) {
+    const current = permissions[key] || 'allow';
+    const next = current === 'allow' ? 'deny' : current === 'deny' ? 'inherit' : 'allow';
+    setPermissions({ ...permissions, [key]: next });
+    toast.success(`Permission '${key}' set to ${next.toUpperCase()}`);
+  }
 
   return (
-    <div className="p-6 h-[calc(100vh-100px)] flex flex-col">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Role & Permissions</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Manage access control and role capabilities</p>
-        </div>
-        <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-xl transition-colors shadow-sm">
-          Save Changes
-        </button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <Shield className="text-indigo-600 dark:text-indigo-400" /> Dynamic Role & Granular RBAC Permissions
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Modify access rules (Allow / Deny / Inherit) for Admin, VC, HOD, and Faculty.
+        </p>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
-        {/* Left Panel: Roles */}
-        <div className="w-full md:w-80 flex flex-col bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/20">
-            <h2 className="font-semibold text-slate-800 dark:text-white">Roles</h2>
-            <button className="p-1.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-600"><Plus size={16}/></button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Roles List */}
+        <div className="bg-white dark:bg-slate-900/80 backdrop-blur-md rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="font-bold text-slate-900 dark:text-white text-sm">System Roles</h2>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {roles.map(role => (
+
+          <div className="space-y-2">
+            {roles.map(r => (
               <div 
-                key={role.id}
-                onClick={() => setActiveRole(role.id)}
-                className={`p-3 rounded-xl cursor-pointer flex items-center justify-between transition-colors ${activeRole === role.id ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
+                key={r.id} 
+                onClick={() => setSelectedRole(r)}
+                className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                  selectedRole.id === r.id 
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-100 shadow-sm' 
+                    : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${role.type === 'system' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30'}`}>
-                    <Shield size={16} />
-                  </div>
-                  <div>
-                    <div className={`font-medium ${activeRole === role.id ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200'}`}>{role.name}</div>
-                    <div className="text-xs text-slate-500">{role.users} users</div>
-                  </div>
+                <div>
+                  <div className="font-bold text-sm">{r.name}</div>
+                  <div className="text-[11px] text-slate-400">{r.desc}</div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md ${role.type === 'system' ? 'bg-slate-100 text-slate-500 dark:bg-slate-700' : 'bg-amber-50 text-amber-600 dark:bg-amber-900/30'}`}>
-                    {role.type}
-                  </span>
-                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  {r.usersCount} users
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Panel: Permissions */}
-        <div className="flex-1 flex flex-col bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden shadow-sm">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/20">
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              Permissions for <span className="text-indigo-600">{roles.find(r => r.id === activeRole)?.name}</span>
-            </h2>
-            <p className="text-sm text-slate-500 mt-1">Configure what users with this role can access and do.</p>
+        {/* Permissions Grid */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900/80 backdrop-blur-md rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h2 className="font-bold text-slate-900 dark:text-white text-base">
+                Permissions for <span className="text-indigo-600 dark:text-indigo-400">{selectedRole.name}</span>
+              </h2>
+              <span className="text-xs text-slate-400">Click any permission node to toggle state: Allow &rarr; Deny &rarr; Inherit</span>
+            </div>
+            <button 
+              onClick={() => toast.success('Role permissions saved')} 
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold"
+            >
+              Save Configuration
+            </button>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            {permissionGroups.map(group => (
-              <div key={group.group}>
-                <div className="flex items-center gap-2 mb-4 text-slate-800 dark:text-white font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">
-                  <group.icon size={18} className="text-indigo-500" /> {group.group}
-                </div>
-                <div className="space-y-3">
-                  {group.perms.map(perm => (
-                    <div key={perm.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-700/50 transition-colors">
-                      <div>
-                        <div className="font-medium text-slate-700 dark:text-slate-200">{perm.name}</div>
-                        <div className="text-sm text-slate-500">{perm.desc}</div>
-                      </div>
-                      <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
-                        <button className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${activeRole === 'admin' ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                          Allow
-                        </button>
-                        <button className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${activeRole !== 'admin' ? 'bg-white dark:bg-slate-700 text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                          Deny
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {Object.entries(permissions).map(([key, val]) => (
+              <div 
+                key={key} 
+                onClick={() => togglePermission(key)}
+                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer flex items-center justify-between"
+              >
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wider">{key.replace(/_/g, ' ')}</span>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                  val === 'allow' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' :
+                  val === 'deny' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400' :
+                  'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                }`}>
+                  {val}
+                </span>
               </div>
             ))}
           </div>
@@ -129,6 +109,4 @@ const RolePermissions = ({ isDark }) => {
       </div>
     </div>
   );
-};
-
-export default RolePermissions;
+}

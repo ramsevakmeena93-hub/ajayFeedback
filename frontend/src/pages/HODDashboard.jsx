@@ -8,16 +8,21 @@ import StatsBar from "../components/StatsBar";
 import PDFUploadModal from "../components/PDFUploadModal";
 import CSVReviewModal from "../components/CSVReviewModal";
 import Footer from "../components/Footer";
-import { Upload, Send, Trash2, RefreshCw, Wrench, Users, Plus, Download, Archive, X, ChevronRight } from "lucide-react";
+import WorkspaceSwitcher from "../components/WorkspaceSwitcher";
+import { Upload, Send, Trash2, RefreshCw, Wrench, Users, Plus, Download, FileText, X, ChevronRight, PenLine, Clock, CheckCircle, AlertTriangle, ShieldAlert } from "lucide-react";
 
-const SEMESTERS = ["1", "2", "3", "4", "5", "6", "7", "8"];
-const YEARS = Array.from({ length: 6 }, (_, i) => `${2023 + i}-${2024 + i}`);
+// Dynamic academic year list from 2020 to 10 years ahead
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 11 }, (_, i) => {
+  const y = 2020 + i;
+  return `${y}-${y + 1}`;
+});
 
 export default function HODDashboard() {
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, updateUser, isMultiRole, activeWorkspace } = useAuth();
   const csvRef = useRef();
+  const sigRef = useRef();
 
-  const [tab, setTab] = useState("reports"); // "reports" | "records"
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState([]);
@@ -25,11 +30,26 @@ export default function HODDashboard() {
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [okReviewed, setOkReviewed] = useState(new Set());
   const [vcUser, setVcUser] = useState(null);
+  
+  const [dismissedNotifs, setDismissedNotifs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedNotifs') || '[]'); } catch { return []; }
+  });
+
+  function dismissNotif(id) {
+    const updated = [...dismissedNotifs, id];
+    setDismissedNotifs(updated);
+    localStorage.setItem('dismissedNotifs', JSON.stringify(updated));
+  }
 
   // CSV session info modal
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
-  const [sessionInfo, setSessionInfo] = useState({ department: "", academicYear: YEARS[2], semester: "1", session: "aug-dec", feedbackFormNo: "I" });
+  const [sessionInfo, setSessionInfo] = useState({
+    department: "",
+    academicYear: YEARS[Math.max(0, CURRENT_YEAR - 2020)],
+    session: "jul-dec",
+    feedbackFormNo: "I"
+  });
 
   // CSV review
   const [csvLinks, setCsvLinks] = useState([]);
@@ -39,6 +59,15 @@ export default function HODDashboard() {
   const [showCsvReview, setShowCsvReview] = useState(false);
   const [preloadCache, setPreloadCache] = useState({});
   const [currentSession, setCurrentSession] = useState(null);
+  const [sessionStartTime, setSessionStartTime] = useState(null);
+
+  // Signature modal
+  const [showSigModal, setShowSigModal] = useState(false);
+  const [sigPreview, setSigPreview] = useState(user?.signatureImage || null);
+  const [sigSaving, setSigSaving] = useState(false);
+
+  // PDF preview (before VC)
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
 
@@ -55,7 +84,6 @@ export default function HODDashboard() {
     try {
       const { data } = await api.get("/api/reports/my");
       setReports(data);
-      // Auto-select all faculty_approved reports
       const autoSelect = data.filter(r => r.status === "faculty_approved" || r.status === "processed").map(r => r._id);
       setSelected(autoSelect);
     }
@@ -65,11 +93,23 @@ export default function HODDashboard() {
     } finally { setLoading(false); }
   }
 
+  // Compute which report IDs are in any submission
+  const submittedIds = new Set(
+    submissions
+      .flatMap(s => (s.reports || []).map(r => (typeof r === "string" ? r : r?._id?.toString())))
+      .filter(Boolean)
+  );
+
   // Step 1: intercept CSV file, show session modal first
   function handleCSVFileSelect(e) {
     const file = e.target.files[0]; if (!file) return;
     setPendingFile(file);
-    setSessionInfo({ department: user?.department || "", academicYear: YEARS[2], semester: "1" });
+    setSessionInfo({
+      department: user?.department || "",
+      academicYear: YEARS[Math.max(0, CURRENT_YEAR - 2020)],
+      session: "jul-dec",
+      feedbackFormNo: "I"
+    });
     setShowSessionModal(true);
     e.target.value = "";
   }
@@ -78,9 +118,9 @@ export default function HODDashboard() {
   async function handleSessionConfirm() {
     if (!sessionInfo.department.trim()) return toast.error("Please enter department name");
     if (!sessionInfo.academicYear) return toast.error("Please select academic year");
-    if (!sessionInfo.semester) return toast.error("Please select semester");
     setShowSessionModal(false);
     setCurrentSession({ ...sessionInfo });
+    setSessionStartTime(Date.now() - 1000); // 1 second buffer
     const fd = new FormData(); fd.append("csv", pendingFile);
     try {
       const { data } = await api.post("/api/process/upload-csv", fd);
@@ -95,33 +135,23 @@ export default function HODDashboard() {
 
   async function loadPDF(links, idx) {
     if (idx >= links.length) return;
-
-    // Use preloaded data if available
     if (preloadCache[idx]) {
       setCsvCurrentData(preloadCache[idx]);
       setCsvProcessing(false);
       preloadBatch(links, idx + 1);
       return;
     }
-
     setCsvProcessing(true); setCsvCurrentData(null);
     try {
       const entry = links[idx];
-      const payload = {
-        pdfLink: entry.pdfLink,
-        responseCount: entry.responseCount,
-        sno: idx + 1
-      };
+      const payload = { pdfLink: entry.pdfLink, responseCount: entry.responseCount, sno: idx + 1 };
       const { data } = await api.post("/api/process/process-one", payload);
-      // Tag report with session info
       if (currentSession) {
         await api.patch(`/api/reports/${data.report._id}/edit`, {
           academicYear: currentSession.academicYear,
-          semester: currentSession.semester
         }).catch(() => { });
       }
       setCsvCurrentData(data.report);
-      // Force update the main table with the complete new report data
       setReports(prev => {
         const other = prev.filter(r => r._id !== data.report._id);
         return [...other, data.report];
@@ -133,13 +163,11 @@ export default function HODDashboard() {
     } finally { setCsvProcessing(false); }
   }
 
-  // Preload up to 3 reports in background
   async function preloadBatch(links, startIdx) {
     const limit = 3;
     for (let i = 0; i < limit; i++) {
       const targetIdx = startIdx + i;
       if (targetIdx >= links.length || preloadCache[targetIdx]) continue;
-
       const entry = links[targetIdx];
       api.post("/api/process/process-one", {
         pdfLink: entry.pdfLink,
@@ -149,11 +177,9 @@ export default function HODDashboard() {
         if (currentSession) {
           api.patch(`/api/reports/${data.report._id}/edit`, {
             academicYear: currentSession.academicYear,
-            semester: currentSession.semester
           }).catch(() => { });
         }
         setPreloadCache(prev => ({ ...prev, [targetIdx]: data.report }));
-        // Also update the main table so it's ready even before the user reviews
         setReports(prev => {
           const other = prev.filter(r => r._id !== data.report._id);
           return [...other, data.report];
@@ -180,9 +206,8 @@ export default function HODDashboard() {
     try {
       await api.post("/api/submissions/send", {
         reportIds: selected,
-        academicYear: currentSession?.academicYear || new Date().getFullYear().toString(),
+        academicYear: currentSession?.academicYear || YEARS[Math.max(0, CURRENT_YEAR - 2020)],
         department: currentSession?.department || user?.department || "",
-        semester: currentSession?.semester || "",
         session: currentSession?.session || "",
         feedbackFormNo: currentSession?.feedbackFormNo || "I",
         submissionDate: new Date().toISOString()
@@ -211,24 +236,38 @@ export default function HODDashboard() {
     toast.success("Downloading CSV...");
   }
 
+  // Export PDF before VC approval (HOD review)
+  async function handleExportPDF() {
+    if (reports.length === 0) return toast.error("No reports to export");
+    setExportingPDF(true);
+    toast.loading("Generating preview PDF...", { id: "pdf-preview" });
+    try {
+      const res = await fetch("/api/reports/my/preview-pdf", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        toast.error(e.error || "PDF generation failed", { id: "pdf-preview" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hod-review-report-${new Date().toISOString().split("T")[0]}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF downloaded for review!", { id: "pdf-preview" });
+    } catch (err) {
+      toast.error("Failed to generate PDF", { id: "pdf-preview" });
+    } finally { setExportingPDF(false); }
+  }
+
   async function handleSendToFaculty(reportId) {
     try { await api.post(`/api/reports/${reportId}/send-to-faculty`); toast.success("Report sent to faculty"); fetchReports(); }
     catch (err) { toast.error(err.response?.data?.error || "Failed to send"); }
   }
 
-  async function handleDownloadPDF(subId) {
-    toast.loading("Generating combined PDF...", { id: "pdf-dl" });
-    try {
-      const res = await fetch(`/api/submissions/${subId}/download-pdf`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const e = await res.json(); toast.error(e.error || "PDF not available", { id: "pdf-dl" }); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `feedback-report-${subId}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("PDF downloaded!", { id: "pdf-dl" });
-    } catch { toast.error("Failed to download PDF", { id: "pdf-dl" }); }
-  }
   async function handleHODApprove(reportId, reason) {
     try {
       await api.patch(`/api/reports/${reportId}/edit`, { status: "faculty_approved", actionTaken: reason });
@@ -242,6 +281,18 @@ export default function HODDashboard() {
       setReports(prev => prev.map(r => r._id === reportId ? { ...r, [field]: value } : r));
     } catch { toast.error("Failed to update"); }
   }
+
+  // Single report delete (only for non-approved, non-VC-approved reports)
+  async function handleDeleteReport(reportId) {
+    if (!window.confirm("Delete this report? This cannot be undone.")) return;
+    try {
+      await api.delete(`/api/reports/${reportId}`);
+      setReports(prev => prev.filter(r => r._id !== reportId));
+      setSelected(prev => prev.filter(id => id !== reportId));
+      toast.success("Report deleted");
+    } catch (err) { toast.error(err.response?.data?.error || "Failed to delete"); }
+  }
+
   async function clearAllReports() {
     if (!window.confirm("Delete all non-approved reports? This cannot be undone.")) return;
     try {
@@ -264,98 +315,194 @@ export default function HODDashboard() {
       .catch(err => toast.error("Failed: " + (err.response?.data?.error || err.message)));
   }
 
+  // Signature upload handlers
+  function handleSigFile(e) {
+    const file = e.target.files[0]; if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Please upload an image file (PNG/JPG)");
+    if (file.size > 2 * 1024 * 1024) return toast.error("Image must be under 2MB");
+    const reader = new FileReader();
+    reader.onload = (ev) => setSigPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+  async function handleSigSave() {
+    if (!sigPreview) return;
+    setSigSaving(true);
+    try {
+      const res = await api.post("/api/auth/signature", { signatureImage: sigPreview });
+      if (res.data.user) updateUser(res.data.user);
+      toast.success("Signature saved successfully");
+      setShowSigModal(false);
+    } catch { toast.error("Failed to save signature"); }
+    finally { setSigSaving(false); }
+  }
+
   const processed = reports.filter(r => r.status === "processed");
-  const approvedSubs = submissions.filter(s => s.status === "approved" || s.status === "rejected");
+  const approvedSubs = submissions.filter(s => s.status === "approved" || s.status === "rejected" || s.status === "sent_back");
+
+  // ── VC decision popup ─────────────────────────────────────────────────────
+  // Show once per session for each unacknowledged VC decision.
+  // Dismissed IDs are persisted to localStorage so reloads don't re-show.
+  const [vcPopupQueue, setVcPopupQueue] = useState([]);
+  const [vcPopupIdx,   setVcPopupIdx]   = useState(0);
+  const [showVcPopup,  setShowVcPopup]  = useState(false);
+
+  useEffect(() => {
+    const dismissed = JSON.parse(localStorage.getItem('dismissedVcDecisions') || '[]');
+    const pending = approvedSubs.filter(s => !dismissed.includes(s._id));
+    if (pending.length > 0) {
+      setVcPopupQueue(pending);
+      setVcPopupIdx(0);
+      setShowVcPopup(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissions.length]);
+
+  function dismissVcPopup() {
+    const current = vcPopupQueue[vcPopupIdx];
+    if (current) {
+      const dismissed = JSON.parse(localStorage.getItem('dismissedVcDecisions') || '[]');
+      dismissed.push(current._id);
+      localStorage.setItem('dismissedVcDecisions', JSON.stringify(dismissed));
+    }
+    if (vcPopupIdx + 1 < vcPopupQueue.length) {
+      setVcPopupIdx(i => i + 1);
+    } else {
+      setShowVcPopup(false);
+    }
+  }
+
+  const visibleReports = reports.filter(r => {
+    if (sessionStartTime) return new Date(r.createdAt).getTime() >= sessionStartTime;
+    return !submittedIds.has(String(r._id));
+  });
+
+  const hodStats = [
+    { label: "Total Reports",   value: visibleReports.length, icon: FileText,    color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100" },
+    { label: "Pending Action",  value: visibleReports.filter(r => r.status === 'processed').length, icon: Clock,       color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-100" },
+    { label: "Sent to Faculty", value: visibleReports.filter(r => r.status === 'sent_to_faculty').length, icon: Send,        color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-100" },
+    { label: "Approved",        value: visibleReports.filter(r => r.status === 'faculty_approved').length, icon: CheckCircle, color: "text-emerald-600",bg: "bg-emerald-50",border: "border-emerald-100" }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200">
-      <Navbar title="HOD Dashboard" subtitle={user?.department} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200">
+      <Navbar title="Faculty Feedback Reports" subtitle={currentSession ? `${currentSession.department} · ${currentSession.academicYear}` : `${user?.department || "Department"}`} />
 
       <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
 
         {/* Page header */}
-        <div className="flex items-start justify-between gap-4 animate-fade-in">
+        <div className="flex items-start justify-between gap-4 animate-fade-in mb-8">
           <div>
-            <h1 className="page-title">Faculty Feedback Reports</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-600 dark:from-indigo-400 dark:to-purple-400">HOD Dashboard</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">
               {currentSession
-                ? `${currentSession.department} · ${currentSession.academicYear} · Semester ${currentSession.semester}`
-                : `Academic Year 2025–26 · ${user?.department || "Department"}`}
+                ? `${currentSession.department} · ${currentSession.academicYear}`
+                : `Academic Year ${YEARS[Math.max(0, CURRENT_YEAR - 2020)]} · ${user?.department || "Department"}`}
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="w-9 h-9 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm">
-              {user?.name?.[0]?.toUpperCase()}
-            </div>
-          </div>
+
         </div>
 
-        {/* VC Notifications */}
-        {approvedSubs.map(sub => (
-          <div key={sub._id} className={`rounded-2xl px-5 py-3.5 flex items-center gap-3 text-sm font-medium border animate-slide-up ${sub.status === "approved" ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/80 text-red-800 dark:text-red-300"}`}>
-            <span>{sub.status === "approved" ? "✅" : "❌"}</span>
-            <span className="flex-1">
-              {sub.status === "approved" ? (
-                <>
-                  VC has <strong>approved</strong> your submission ({sub.academicYear || new Date().getFullYear()}) and download pdf from history section
-                </>
-              ) : (
-                <>
-                  VC has <strong>rejected</strong> your submission ({sub.academicYear || new Date().getFullYear()})
-                </>
-              )}
-            </span>
-            {sub.vcComment && <span className="text-xs opacity-60 ml-1">— "{sub.vcComment}"</span>}
-          </div>
-        ))}
+        {/* VC Decision Popup Modal */}
+        {showVcPopup && vcPopupQueue[vcPopupIdx] && (() => {
+          const sub = vcPopupQueue[vcPopupIdx];
+          const isApproved  = sub.status === "approved";
+          const isRejected  = sub.status === "rejected";
+          const isSentBack  = sub.status === "sent_back";
+          const remaining   = vcPopupQueue.length - vcPopupIdx - 1;
+          return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-fade-in">
+              <div className={`bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in border-2 ${
+                isApproved ? "border-emerald-400" : isRejected ? "border-red-400" : "border-amber-400"
+              }`}>
+                {/* Header strip */}
+                <div className={`px-6 py-5 ${
+                  isApproved  ? "bg-gradient-to-r from-emerald-500 to-green-500"
+                  : isRejected ? "bg-gradient-to-r from-red-500 to-rose-500"
+                  : "bg-gradient-to-r from-amber-500 to-orange-500"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-4xl">
+                      {isApproved ? "✅" : isRejected ? "❌" : "↩️"}
+                    </span>
+                    <div>
+                      <p className="text-white font-black text-xl leading-tight">
+                        {isApproved  ? "Submission Approved!" 
+                        : isRejected ? "Submission Rejected"
+                        : "Submission Sent Back"}
+                      </p>
+                      <p className="text-white/80 text-sm mt-0.5">
+                        VC Decision — {sub.academicYear || new Date().getFullYear()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 py-5 space-y-4">
+                  <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                    {isApproved && <>
+                      The Vice Chancellor has <strong className="text-emerald-600">approved</strong> your feedback
+                      submission for the <strong>{sub.department || "your department"}</strong> department,
+                      Academic Year <strong>{sub.academicYear || "2026"}</strong>
+                      {sub.session ? `, ${sub.session === "jan-may" ? "Jan – May" : "Jul – Dec"} session` : ""}.
+                      The final PDF report is now available.
+                    </>}
+                    {isRejected && <>
+                      The Vice Chancellor has <strong className="text-red-600">rejected</strong> your feedback
+                      submission for <strong>{sub.department || "your department"}</strong>,
+                      Academic Year <strong>{sub.academicYear || "2026"}</strong>.
+                      Please review the comments and resubmit.
+                    </>}
+                    {isSentBack && <>
+                      The Vice Chancellor has <strong className="text-amber-600">sent back</strong> your
+                      submission for <strong>{sub.department || "your department"}</strong> for revision.
+                    </>}
+                  </p>
+
+                  {sub.vcComment && (
+                    <div className={`rounded-2xl p-4 border ${
+                      isApproved  ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800"
+                      : isRejected ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
+                      : "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
+                    }`}>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">VC Comment</p>
+                      <p className="text-sm text-slate-800 dark:text-slate-200 italic">"{sub.vcComment}"</p>
+                    </div>
+                  )}
+
+                  {remaining > 0 && (
+                    <p className="text-xs text-slate-400 text-center">
+                      {remaining} more decision{remaining > 1 ? "s" : ""} waiting
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+                  {isApproved && (
+                    <a
+                      href="/hod/history"
+                      onClick={dismissVcPopup}
+                      className="btn btn-success flex-1 text-center justify-center"
+                    >
+                      📄 View & Download PDF
+                    </a>
+                  )}
+                  <button
+                    onClick={dismissVcPopup}
+                    className={`btn flex-1 justify-center ${isApproved ? "btn-secondary" : "btn-primary"}`}
+                  >
+                    {remaining > 0 ? "Next →" : "Dismiss"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── REPORTS ── */}
         <>
-          <StatsBar
-            total={reports.length} processed={processed.length}
-            pending={reports.filter(r => r.status === "pending").length}
-            errors={reports.filter(r => r.status === "error").length}
-            totalAppreciation={processed.reduce((s, r) => s + (r.appreciationCount || 0), 0)}
-            totalAttention={processed.reduce((s, r) => s + (r.attentionCount || 0), 0)}
-          />
 
-          <div className="card px-5 py-3.5 flex flex-wrap gap-2 items-center justify-between animate-fade-in">
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => setShowPDFModal(true)} className="btn btn-primary btn-sm">
-                <Plus size={14} /> Upload PDFs
-              </button>
-              <input ref={csvRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFileSelect} />
-              <button onClick={() => csvRef.current.click()} className="btn btn-secondary btn-sm">
-                <Upload size={14} /> Upload CSV
-              </button>
-              {reports.length > 0 && <>
-                <button onClick={fixMetadata} className="btn btn-secondary btn-sm text-indigo-600">
-                  <Wrench size={14} /> Fix Names
-                </button>
-                <button onClick={clearAllReports} className="btn btn-secondary btn-sm text-red-600">
-                  <Trash2 size={14} /> Clear All
-                </button>
-              </>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={fetchReports} className="btn btn-ghost btn-sm">
-                <RefreshCw size={14} /> Refresh
-              </button>
-              {processed.length > 0 && (
-                <button onClick={handleBulkSendToFaculty} className="btn btn-secondary btn-sm text-teal-700">
-                  <Users size={14} /> Send All to Faculty
-                </button>
-              )}
-              {reports.length > 0 && (
-                <button onClick={handleExportCSV} className="btn btn-secondary btn-sm text-emerald-700">
-                  <Download size={14} /> Export CSV
-                </button>
-              )}
-              <button onClick={handleSendToVC} disabled={selected.length === 0} className="btn btn-success btn-sm">
-                <Send size={14} /> Send to VC {selected.length > 0 && `(${selected.length})`}
-              </button>
-            </div>
-          </div>
 
           {loading ? (
             <div className="card p-12 text-center animate-fade-in">
@@ -365,11 +512,60 @@ export default function HODDashboard() {
             </div>
           ) : (
             <div className="animate-slide-up">
+              <StatsBar stats={hodStats} />
+
+              {/* ── Toolbar ── */}
+              <div className="card px-5 py-3.5 flex flex-wrap gap-2 items-center justify-between animate-fade-in mt-4">
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setShowPDFModal(true)} className="btn btn-primary btn-sm">
+                    <Plus size={14} /> Upload PDFs
+                  </button>
+                  <input ref={csvRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFileSelect} />
+                  <button onClick={() => csvRef.current.click()} className="btn btn-secondary btn-sm">
+                    <Upload size={14} /> Upload CSV
+                  </button>
+                  {reports.length > 0 && <>
+                    <button onClick={fixMetadata} className="btn btn-secondary btn-sm text-indigo-600">
+                      <Wrench size={14} /> Fix Names
+                    </button>
+                    <button onClick={clearAllReports} className="btn btn-secondary btn-sm text-red-600">
+                      <Trash2 size={14} /> Clear All
+                    </button>
+                  </>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={fetchReports} className="btn btn-ghost btn-sm">
+                    <RefreshCw size={14} /> Refresh
+                  </button>
+                  {processed.length > 0 && (
+                    <button onClick={handleBulkSendToFaculty} className="btn btn-secondary btn-sm text-teal-700">
+                      <Users size={14} /> Send All to Faculty
+                    </button>
+                  )}
+                  {reports.length > 0 && (
+                    <>
+                      <button onClick={handleExportCSV} className="btn btn-secondary btn-sm text-emerald-700">
+                        <Download size={14} /> Export CSV
+                      </button>
+                      <button onClick={handleExportPDF} disabled={exportingPDF} className="btn btn-secondary btn-sm text-violet-700">
+                        <FileText size={14} /> {exportingPDF ? "Generating..." : "Export PDF"}
+                      </button>
+                    </>
+                  )}
+                  <button onClick={handleSendToVC} disabled={selected.length === 0} className="btn btn-success btn-sm">
+                    <Send size={14} /> Send to VC {selected.length > 0 && `(${selected.length})`}
+                  </button>
+                </div>
+              </div>
+
               <FeedbackTable
-                reports={reports} selected={selected} onSelect={setSelected}
+                reports={visibleReports}
+                selected={selected} onSelect={setSelected}
                 okReviewed={okReviewed} onInlineOk={handleInlineOk}
                 onSendToFaculty={handleSendToFaculty} onHODApprove={handleHODApprove}
-                onFieldEdit={handleFieldEdit} hodUser={user} vcUser={vcUser}
+                onFieldEdit={handleFieldEdit} onDeleteReport={handleDeleteReport}
+                submittedIds={submittedIds}
+                hodUser={user} vcUser={vcUser}
               />
             </div>
           )}
@@ -422,19 +618,55 @@ export default function HODDashboard() {
                   <option value="II">Feedback Form – II</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Semester</label>
-                <select className="input" value={sessionInfo.semester}
-                  onChange={e => setSessionInfo(s => ({ ...s, semester: e.target.value }))}>
-                  {SEMESTERS.map(s => <option key={s} value={s}>Semester {s}</option>)}
-                </select>
-              </div>
             </div>
 
             <div className="flex gap-3 pt-1">
               <button onClick={() => setShowSessionModal(false)} className="btn btn-secondary flex-1">Cancel</button>
               <button onClick={handleSessionConfirm} className="btn btn-primary flex-1">
                 Continue <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Modal */}
+      {showSigModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-scale-in overflow-hidden">
+            <div className="px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-violet-50">
+              <h2 className="font-bold text-indigo-900 text-lg">Upload / Edit Signature</h2>
+              <p className="text-xs text-indigo-600 mt-0.5">This will appear on all feedback reports</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div
+                onClick={() => sigRef.current.click()}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${sigPreview ? "border-indigo-400 bg-indigo-50" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50"}`}
+              >
+                {sigPreview ? (
+                  <div>
+                    <img src={sigPreview} alt="Signature preview" className="max-h-24 mx-auto object-contain mb-2" />
+                    <p className="text-xs text-indigo-600 font-medium">Signature loaded — click to change</p>
+                  </div>
+                ) : (
+                  <div>
+                    <PenLine className="mx-auto text-slate-400 mb-2" size={32} />
+                    <p className="text-sm font-medium text-slate-600">Click to upload signature image</p>
+                    <p className="text-xs text-slate-400 mt-1">PNG or JPG · Max 2MB · White background recommended</p>
+                  </div>
+                )}
+                <input ref={sigRef} type="file" accept="image/*" className="hidden" onChange={handleSigFile} />
+              </div>
+              <p className="text-xs text-slate-400 text-center">
+                Your signature will appear on all feedback reports sent to VC
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t bg-slate-50 flex gap-3 justify-end">
+              <button onClick={() => setShowSigModal(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleSigSave} disabled={!sigPreview || sigSaving}
+                className="btn btn-primary flex items-center gap-2 disabled:opacity-50">
+                <PenLine size={14} />
+                {sigSaving ? "Saving..." : "Save Signature"}
               </button>
             </div>
           </div>

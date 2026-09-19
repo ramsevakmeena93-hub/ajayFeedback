@@ -7,7 +7,7 @@ import {
   Building2, Users, GraduationCap, Shield,
   MapPin, Phone, Mail, ArrowRight,
   Star, TrendingUp, CheckCircle, BarChart3,
-  Zap, Menu, X, ChevronRight
+  Zap, Menu, X, ChevronRight, Code2
 } from "lucide-react";
 
 const STATS = [
@@ -65,6 +65,15 @@ export default function Landing() {
               </div>
             </a>
 
+            <div className="hidden md:flex items-center gap-2 mr-2">
+              <button
+                onClick={() => navigate("/developer")}
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-indigo-500/20 border border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.6)] hover:shadow-[0_0_25px_rgba(99,102,241,0.9)] hover:bg-indigo-500/40 hover:border-indigo-400 transition-all duration-300 relative overflow-hidden group">
+                <span className="relative z-10 flex items-center gap-1.5"><Code2 size={16} /> Developer</span>
+                <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0" />
+              </button>
+            </div>
+
             <button
               onClick={() => navigate("/login")}
               className="hidden md:flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
@@ -80,7 +89,12 @@ export default function Landing() {
         </div>
 
         {menuOpen && (
-          <div className="md:hidden bg-slate-900 border-t border-slate-800 px-4 py-3">
+          <div className="md:hidden bg-slate-900 border-t border-slate-800 px-4 py-3 space-y-2">
+            <button
+              onClick={() => { navigate("/developer"); setMenuOpen(false); }}
+              className="w-full py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-white transition-colors">
+              Developer Profile
+            </button>
             <button
               onClick={() => { navigate("/login"); setMenuOpen(false); }}
               className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors">
@@ -265,6 +279,33 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── DEVELOPER SECTION ── */}
+      <section className="py-24 relative overflow-hidden bg-[#0d1326] border-t border-slate-800">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-900/10 pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
+        
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold mb-6 shadow-sm">
+            <Code2 size={14} className="text-indigo-400" />
+            Behind the Code
+          </div>
+          
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-6 tracking-tight">
+            Meet the <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Developer</span>
+          </h2>
+          
+          <p className="text-slate-400 text-lg sm:text-xl mb-10 max-w-3xl mx-auto leading-relaxed">
+            Discover the architect behind the MITS Faculty Feedback System. Explore the journey, technical expertise, and the expert guidance that shaped this premium academic platform.
+          </p>
+          
+          <button
+            onClick={() => navigate("/developer")}
+            className="inline-flex items-center gap-3 px-8 py-4 bg-white text-slate-900 hover:bg-indigo-50 font-bold rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all duration-300 hover:-translate-y-1 text-base group">
+            View Developer Profile <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </section>
+
       {/* ── FOOTER ── */}
       <footer className="bg-slate-900 border-t border-slate-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -329,7 +370,7 @@ export default function Landing() {
               © 2025 Madhav Institute of Technology &amp; Science, Gwalior. All rights reserved.
             </p>
             <p className="text-slate-700 text-xs">
-              Developed by <span className="text-slate-500 font-medium">Ajay Meena</span> · B.Tech CST
+              Developed under the guidance of Dr. Abhishek Dixit, HOD of Centre for CST
             </p>
           </div>
         </div>

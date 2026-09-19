@@ -21,11 +21,11 @@ function parseCSV(buffer) {
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
     const cells = splitRow(rows[i]).map(c => c.toLowerCase());
     const isHeaderCandidate = cells.some(c => c.includes('faculty') || c.includes('name')) && 
-                              cells.some(c => c.includes('respon') || c === 'resp');
+                              cells.some(c => c.includes('resp'));
     
     if (isHeaderCandidate) {
       headerIdx = i;
-      respIdx = cells.findIndex(c => c.includes('respon') || c === 'resp');
+      respIdx = cells.findIndex(c => c.includes('resp'));
       linkIdx = cells.findIndex(c => c.includes('link') || c.includes('drive') || c.includes('url'));
       break;
     }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Search, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Eye, Trash2 } from "lucide-react";
 import ReportDetailModal from "./ReportDetailModal";
 
 const STATUS_CFG = {
@@ -86,7 +86,7 @@ function EditableCell({ reportId, field, value, onEdit, cls }) {
 
 const PAGE_SIZE = 10;
 
-export default function FeedbackTable({ reports, selected, onSelect, okReviewed, onInlineOk, onSendToFaculty, onHODApprove, onFieldEdit, hodUser, vcUser }) {
+export default function FeedbackTable({ reports, selected, onSelect, okReviewed, onInlineOk, onSendToFaculty, onHODApprove, onFieldEdit, onDeleteReport, hodUser, vcUser, submittedIds }) {
   const reviewed = okReviewed || new Set();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -97,22 +97,28 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
-  const selectableIds = reports.filter(r => r.status === "processed" || r.status === "faculty_approved").map(r => r._id);
+  const isSubmitted = (reportId) => submittedIds && submittedIds.has(String(reportId));
+  const selectableIds = reports.filter(r => (r.status === "processed" || r.status === "faculty_approved") && !isSubmitted(r._id)).map(r => r._id);
 
   function toggleAll() { onSelect(selected.length === selectableIds.length ? [] : selectableIds); }
   function toggleSelect(id) { onSelect(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); }
 
   function parseCodeBatch(subjectCode) {
     if (!subjectCode) return { code:"—", batch:"—" };
-    // Handles: "16242202-Batch-A", "16242202-A", "16242202 Batch A", "16242202"
     const m = subjectCode.match(/^([A-Za-z0-9]+)[-\s]+(Batch[-\s]*[A-Za-z0-9]+|[A-Za-z][-\s]*[A-Za-z0-9]*)$/i);
     if (m) return { code: m[1].trim(), batch: m[2].trim() };
-    // Fallback: split on first hyphen
     const parts = subjectCode.split("-");
     if (parts.length >= 2) {
       return { code: parts[0].trim(), batch: parts.slice(1).join("-").trim() };
     }
     return { code: subjectCode.trim(), batch: "—" };
+  }
+
+  // Can delete: not faculty_approved, not submitted
+  function canDelete(report) {
+    if (report.status === "faculty_approved") return false;
+    if (isSubmitted(report._id)) return false;
+    return true;
   }
 
   if (reports.length === 0) return (
@@ -151,33 +157,31 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
               <th className="px-3 py-3 w-8"><input type="checkbox" checked={selected.length===selectableIds.length && selectableIds.length>0} onChange={toggleAll} className="rounded accent-indigo-600" /></th>
               <th className="px-3 py-3 text-left">S.No</th>
               <th className="px-3 py-3 text-left">Faculty Name</th>
-              <th className="px-3 py-3 text-left">Code</th>
-              <th className="px-3 py-3 text-left">Batch</th>
+              <th className="px-3 py-3 text-left">Subject Code</th>
               <th className="px-3 py-3 text-left">Programme</th>
               <th className="px-3 py-3 text-center">Sem</th>
               <th className="px-3 py-3 text-center">FFI</th>
-              <th className="px-3 py-3 text-center">Resp.</th>
+              <th className="px-3 py-3 text-center">Resp. %</th>
               <th className="px-3 py-3 text-left">Needs Attention</th>
               <th className="px-3 py-3 text-left">Appreciation</th>
               <th className="px-3 py-3 text-left">Action Taken</th>
-              <th className="px-3 py-3 text-left">View</th>
+              <th className="px-3 py-3 text-center">View</th>
+              {onDeleteReport && <th className="px-3 py-3 text-center">Del</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paginated.map((report, idx) => {
               const { code, batch } = parseCodeBatch(report.subjectCode);
+              const deletable = canDelete(report);
               return (
                 <tr key={report._id} className={`table-row align-top ${selected.includes(report._id) ? "bg-indigo-50/60" : ""}`}>
-                  <td className="px-3 py-3"><input type="checkbox" checked={selected.includes(report._id)} onChange={() => toggleSelect(report._id)} disabled={report.status!=="processed" && report.status!=="faculty_approved"} className="rounded accent-indigo-600" /></td>
+                  <td className="px-3 py-3"><input type="checkbox" checked={selected.includes(report._id)} onChange={() => toggleSelect(report._id)} disabled={(report.status!=="processed" && report.status!=="faculty_approved") || isSubmitted(report._id)} className="rounded accent-indigo-600" /></td>
                   <td className="px-3 py-3 text-slate-400 text-xs font-medium">{(page-1)*PAGE_SIZE+idx+1}</td>
                   <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap">
                     <EditableCell reportId={report._id} field="facultyName" value={report.facultyName} onEdit={onFieldEdit} cls="font-semibold" />
                   </td>
-                  <td className="px-3 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">{code}</td>
-                  <td className="px-3 py-3 text-xs whitespace-nowrap">
-                    {batch !== "—"
-                      ? <span className="badge-indigo">{batch}</span>
-                      : <span className="text-slate-400 text-xs italic">No batch</span>}
+                  <td className="px-3 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">
+                    <EditableCell reportId={report._id} field="subjectCode" value={report.subjectCode} onEdit={onFieldEdit} />
                   </td>
                   <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">
                     <EditableCell reportId={report._id} field="programme" value={report.programme} onEdit={onFieldEdit} />
@@ -190,15 +194,50 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
                       <span className={`text-sm font-bold ${report.ffiScore>=4?"text-emerald-600":report.ffiScore>=3?"text-amber-600":"text-red-600"}`}>
                         {report.ffiScore.toFixed(2)}
                       </span>
-                    ) : <span className="text-slate-300">—</span>}
+                    ) : <span className="text-slate-300">-</span>}
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span className="text-xs font-semibold text-slate-500">
-                      {report.responseCount ?? report.totalResponses ?? "—"}
+                      {report.responseCount != null ? String(report.responseCount) : (report.totalResponses != null ? String(report.totalResponses) : "-")}
                     </span>
                   </td>
-                  <td className="px-3 py-3"><CommentList items={report.commentsNeedingAttention} color="yellow" /></td>
-                  <td className="px-3 py-3"><CommentList items={report.appreciation} color="red" commentPercentages={report.commentPercentages} /></td>
+                  <td className="px-3 py-3 text-xs max-w-[200px] whitespace-normal">
+                    <div className="flex flex-col gap-1.5">
+                      {report.commentsNeedingAttention && report.commentsNeedingAttention.length > 0 ? (
+                        report.commentsNeedingAttention.map((c, i) => (
+                          <div key={i} className="bg-red-50 text-red-700 border border-red-100 rounded px-2 py-1 leading-snug">
+                            {c}
+                          </div>
+                        ))
+                      ) : <span className="text-slate-300 italic">-</span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-xs max-w-[200px] whitespace-normal">
+                    <div className="flex flex-col gap-1.5">
+                      {(() => {
+                        const pcts = report.commentPercentages || {};
+                        const pctLines = Object.entries(pcts)
+                          .filter(([, v]) => v > 0)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([k, v], i) => (
+                            <div key={'pct'+i} className="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1 leading-snug font-medium">
+                              {k}: {v}%
+                            </div>
+                          ));
+                        
+                        const longAppreciations = (report.appreciation || [])
+                          .filter(c => c.trim().split(/\s+/).length > 4)
+                          .map((c, i) => (
+                            <div key={'app'+i} className="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1 leading-snug">
+                              {c}
+                            </div>
+                          ));
+                        
+                        const allBoxes = [...pctLines, ...longAppreciations];
+                        return allBoxes.length > 0 ? allBoxes : <span className="text-slate-300 italic">-</span>;
+                      })()}
+                    </div>
+                  </td>
                   <td className="px-3 py-3"><ActionTakenCell reportId={report._id} value={report.actionTaken} onSave={onFieldEdit} /></td>
                   <td className="px-3 py-3">
                     <button onClick={() => setViewReport(report)}
@@ -206,6 +245,21 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
                       <Eye size={12}/> View
                     </button>
                   </td>
+                  {onDeleteReport && (
+                    <td className="px-3 py-3 text-center">
+                      {deletable ? (
+                        <button
+                          onClick={() => onDeleteReport(report._id)}
+                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors border border-red-100 mx-auto"
+                          title="Delete report"
+                        >
+                          <Trash2 size={12}/>
+                        </button>
+                      ) : (
+                        <span className="text-slate-200 text-xs">—</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
