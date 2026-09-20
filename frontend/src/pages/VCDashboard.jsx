@@ -3,7 +3,9 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Navbar from "../components/Navbar";
+import SignatureUpload from '../components/SignatureUpload';
+
+
 import Footer from "../components/Footer";
 import { CheckCircle, XCircle, Eye, TrendingUp, Users, FileText, AlertTriangle, Search, ChevronRight } from "lucide-react";
 
@@ -18,13 +20,32 @@ export default function VCDashboard() {
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("");
-  const [search, setSearch]           = useState("");
+  const [search, setSearch] = useState("");
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectComment, setRejectComment] = useState("");
-  const [activeTab, setActiveTab]     = useState("submissions"); // "submissions" | "analysis"
+  const [activeTab, setActiveTab] = useState("submissions"); // "submissions" | "analysis"
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+const [pendingApproveId, setPendingApproveId] = useState(null);
+
   const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
+
+  async function handleApprove(id) {
+    try {
+      await api.patch(`/api/submissions/${id}/status`, { status: "approved", vcComment: "" });
+      toast.success("Approved successfully");
+      fetchSubmissions();
+    } catch (err) {
+      if (err.response?.data?.needSignature) {
+        setPendingApproveId(id);
+        setShowSignatureModal(true);
+      } else {
+        toast.error("Failed to approve");
+      }
+    }
+  }
+
 
   useEffect(() => { fetchSubmissions(); }, []);
 
@@ -34,10 +55,16 @@ export default function VCDashboard() {
     catch (err) { if (err.response?.status === 401) { logout(); return; } toast.error("Failed to load"); }
     finally { setLoading(false); }
   }
-  async function handleApprove(id) {
-    try { await api.patch(`/api/submissions/${id}/status`, { status:"approved", vcComment:"" }); toast.success("Approved successfully"); fetchSubmissions(); }
-    catch { toast.error("Failed to approve"); }
-  }
+
+  const handleSignatureSaved = async (preview) => {
+    // Close modal and retry the pending approval
+    setShowSignatureModal(false);
+    if (pendingApproveId) {
+      await handleApprove(pendingApproveId);
+      setPendingApproveId(null);
+    }
+  };
+
   async function handleRejectConfirm() {
     if (!rejectModal) return;
     try {
@@ -421,6 +448,10 @@ export default function VCDashboard() {
       </main>
 
       <Footer />
+
+      {showSignatureModal && (
+        <SignatureUpload token={token} onSaved={handleSignatureSaved} onSkip={() => setShowSignatureModal(false)} />
+      )}
 
       {/* Reject Modal */}
       {rejectModal && (

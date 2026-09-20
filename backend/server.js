@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path');
 
 // ── MUST be first — intercepts all console.log/error/warn ──
 const logstream = require('./routes/logstream');
@@ -38,6 +39,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request logger middleware — logs errors to DB
 app.use((req, res, next) => {

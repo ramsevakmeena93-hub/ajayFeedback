@@ -153,7 +153,9 @@ export function AuthProvider({ children, appRole }) {
   // Public API
   // ─────────────────────────────────────────────────────────────────────────
 
-  function login(userData, authToken) {
+  function login(arg1, arg2) {
+    const userData  = typeof arg1 === 'object' && arg1 !== null ? arg1 : arg2;
+    const authToken = typeof arg1 === 'string' ? arg1 : arg2;
     _setAuth(userData, authToken);
     localStorage.setItem('auth', JSON.stringify({ user: userData, token: authToken }));
   }
@@ -179,7 +181,14 @@ export function AuthProvider({ children, appRole }) {
   const activeWorkspace = user?.activeWorkspace || user?.role || null;
 
   /** All role names this user holds (array). */
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  const userRoles = (() => {
+    const r = user?.roles ? [...user.roles] : (user?.role ? [user.role] : []);
+    if (user?.role === 'hod' || r.includes('hod')) {
+      if (!r.includes('hod')) r.push('hod');
+      if (!r.includes('faculty')) r.push('faculty');
+    }
+    return [...new Set(r)];
+  })();
 
   /** Returns true if the user holds at least one of the given roles. */
   function hasAnyRole(...roles) {

@@ -156,122 +156,159 @@ async function extractHighlightedText(buffer) {
 // ─────────────────────────────────────────────────────────────────
 // FILTER: Is this text a real student comment?
 // Rejects: page numbers, dates, URLs, table headers, metadata
+// Accepts: single-word feedback ("GOOD", "Excellent", "best", "nice")
 // ─────────────────────────────────────────────────────────────────
 function isValidComment(text) {
-  if (!text || text.length < 4) return false;
+  if (!text || typeof text !== 'string') return false;
+  const clean = text.trim();
+  if (clean.length < 2) return false;
 
-  // Reject page numbers like "1 / 3", "2/3"
-  if (/^\d+\s*\/\s*\d+$/.test(text)) return false;
-
-  // Reject dates like "4/7/26, 5:05 PM"
-  if (/\d+\/\d+\/\d+/.test(text) && text.length < 30) return false;
+  // Reject page numbers like "1 / 3", "2/3", "about:blank 1 / 2"
+  if (/^\d+\s*\/\s*\d+$/.test(clean)) return false;
+  if (/about:blank/i.test(clean)) return false;
+  if (/\d+\/\d+\/\d+/.test(clean) && clean.length < 35) return false; // dates e.g. "04/07/2026 17:03:01 PM"
 
   // Reject URLs
-  if (/about:blank|http|www\./.test(text)) return false;
+  if (/http|www\./i.test(clean)) return false;
+
+  // Reject institution & report headers
+  if (/madhav\s+institute|department\s+name|print\s+out/i.test(clean)) return false;
+  if (/faculty\s+feedback|action\s+taken\s+report/i.test(clean)) return false;
+  if (/academic\s+year|session:\s*july/i.test(clean)) return false;
+  if (/average\s+ffi|average\s+response/i.test(clean)) return false;
+  if (/feedback\s+submitted|report\s+generated/i.test(clean)) return false;
 
   // Reject table header keywords
-  const tableKeywords = ['faculty name', 'course code', 'course name', 'semester', 'registered',
-    'response', 'submitted answers', 'print out', 'institute', 'department', 'technology',
+  const tableKeywords = [
+    'faculty name', 'course code', 'course name', 'semester', 'registered students',
+    'link send', 'response %', 'submitted answers', 'label question',
     'signature', 'hod', 'pro - vc', 'ffi & suggestion', 'student feedback comments',
-    'batch -', 'batch-a', 'batch-b'];
-  const lower = text.toLowerCase();
+    'below average', 'course outcomes', 'qv 1', 'qv 2'
+  ];
+  const lower = clean.toLowerCase();
   if (tableKeywords.some(kw => lower.includes(kw))) return false;
 
-  // Reject lines that are mostly numbers (table data rows)
-  const numbers = text.match(/\d+/g) || [];
-  const words = text.split(/\s+/);
-  if (numbers.length > words.length * 0.6) return false;
+  // Reject pure numbers or punctuation
+  if (/^[\d\s.,\-–/\\%]+$/.test(clean)) return false;
 
-  // Must have at least 2 real words with letters
-  const realWords = words.filter(w => /[a-zA-Z]{2,}/.test(w));
-  if (realWords.length < 2) return false;
+  // Must have at least 1 letter
+  if (!/[a-zA-Z]/.test(clean)) return false;
 
   return true;
 }
 
 // ─────────────────────────────────────────────────────────────────
 // EXTRACT ALL STUDENT COMMENTS FROM PDF TEXT
-// Student comments appear below the main feedback table.
-// We find the "Student Feedback Comments" section and extract
-// all text lines below it.
+// Handles:
+// 1. Raw comment pages with individual rows (Page 4, 5, 7, 9)
+// 2. Action Taken Report summary tables (Page 1-2) with bullet points
 // ─────────────────────────────────────────────────────────────────
-async function extractAllStudentComments(buffer) {
+async function extractAllStudentComments(buffer, targetCourseCode) {
   const uint8 = new Uint8Array(buffer);
   const doc = await pdfjsLib.getDocument({ data: uint8, verbosity: 0 }).promise;
   const comments = [];
+  const rawCommentPages = [];
 
-  for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
-    const page = await doc.getPage(pageNum);
+  // Pass 1: Identify pages that have raw student comments
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
     const tc = await page.getTextContent();
+    const fullText = tc.items.map(i => i.str).join(' ').toLowerCase();
 
-    // Group text items by Y row — use tighter tolerance (2px) to keep same-line items together
-    const items = tc.items
-      .filter(i => i.str && i.str.trim())
-      .map(i => ({ str: i.str.trim(), x: i.transform[4], y: i.transform[5] }));
+    const hasSubmitted = fullText.includes('submitted') && fullText.includes('answer');
+    const hasStudentFeedbackHeader = fullText.includes('student') && fullText.includes('feedback') && fullText.includes('comment');
+    const hasQuestionsTable = fullText.includes('label') && fullText.includes('question') && fullText.includes('qv');
 
-    const rowMap = {};
-    items.forEach(item => {
-      const yKey = Math.round(item.y / 2) * 2; // 2px tolerance
-      if (!rowMap[yKey]) rowMap[yKey] = [];
-      rowMap[yKey].push(item);
-    });
-
-    const yKeys = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
-
-    // Find the "Student Feedback Comments" header row
-    let commentSectionY = null;
-    for (const y of yKeys) {
-      const rowText = rowMap[y].map(i => i.str).join(' ').toLowerCase();
-      if (rowText.includes('student') && rowText.includes('feedback') && rowText.includes('comment')) {
-        commentSectionY = y;
-        break;
-      }
-      if (rowText.includes('ffi') && rowText.includes('suggestion')) {
-        commentSectionY = y;
-        break;
-      }
-    }
-
-    const startY = commentSectionY !== null ? commentSectionY : null;
-    const commentRows = startY !== null
-      ? yKeys.filter(k => k < startY)
-      : yKeys;
-
-    // Collect raw rows
-    const rawRows = [];
-    for (const y of commentRows) {
-      const rowItems = rowMap[y].sort((a, b) => a.x - b.x);
-      const text = rowItems.map(i => i.str).join(' ').trim().replace(/\s+/g, ' ');
-      if (isValidComment(text)) rawRows.push({ y, text });
-    }
-
-    // MERGE CONTINUATION LINES: merge rows that are part of the same paragraph
-    // A new paragraph starts when: previous line ends with sentence punctuation AND y-gap is large
-    const merged = [];
-    let i = 0;
-    while (i < rawRows.length) {
-      let current = rawRows[i].text;
-      // Keep merging while next line looks like a continuation of the same comment
-      while (i + 1 < rawRows.length) {
-        const next = rawRows[i + 1].text;
-        const yGap = rawRows[i].y - rawRows[i + 1].y;
-        const endsWithPunct = /[.!?]$/.test(current.trim());
-        const nextStartsUpper = /^[A-Z]/.test(next.trim());
-        // Merge if: small y-gap (same paragraph block, typically <25pt between lines)
-        // AND either: current doesn't end with punctuation, OR next starts lowercase (continuation)
-        if (yGap < 25 && (!endsWithPunct || !nextStartsUpper)) {
-          current = current + ' ' + next;
-          i++;
-        } else {
-          break;
-        }
-      }
-      comments.push(current.trim().replace(/\s+/g, ' '));
-      i++;
+    if ((hasSubmitted || hasStudentFeedbackHeader) && !hasQuestionsTable) {
+      rawCommentPages.push({ pageNum: p, page, tc, fullText });
     }
   }
 
-  // Deduplicate
+  // Pass 2: If raw comment pages exist, extract each comment row
+  if (rawCommentPages.length > 0) {
+    for (const { pageNum, tc, fullText } of rawCommentPages) {
+      // If targetCourseCode was provided and PDF has multiple courses, check if this page belongs to targetCourseCode
+      if (targetCourseCode) {
+        const cleanTarget = targetCourseCode.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const pageCodeMatch = fullText.match(/\d{5,}\s*-?\s*batch\s*-?\s*[a-z0-9]+/i);
+        if (pageCodeMatch) {
+          const pageCode = pageCodeMatch[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (pageCode !== cleanTarget) {
+            continue; // belongs to another course in multi-course PDF
+          }
+        }
+      }
+
+      const items = tc.items.filter(i => i.str && i.str.trim());
+
+      // Group text items by row Y (tolerance 3pt)
+      const rowMap = {};
+      items.forEach(i => {
+        const yKey = Math.round(i.transform[5] / 3) * 3;
+        if (!rowMap[yKey]) rowMap[yKey] = [];
+        rowMap[yKey].push(i);
+      });
+
+      const yKeys = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
+
+      // Find the header line after which comments start
+      let commentStartY = 700;
+      for (const y of yKeys) {
+        const line = rowMap[y].sort((a, b) => a.transform[4] - b.transform[4]).map(i => i.str).join(' ').toLowerCase();
+        if ((line.includes('submitted') && line.includes('answer')) || (line.includes('student') && line.includes('feedback'))) {
+          commentStartY = y;
+          break;
+        }
+      }
+
+      // Filter rows below header line and above bottom page footer (y > 30)
+      const commentRows = yKeys.filter(y => y < commentStartY - 10 && y > 30).map(y => {
+        const text = rowMap[y].sort((a, b) => a.transform[4] - b.transform[4]).map(i => i.str).join(' ').trim();
+        return { y, text };
+      });
+
+      // Merge continuation lines: ONLY when line gap is <= 16pt (intra-paragraph wrap)
+      // Separate comments have line gap >= 20pt and are NEVER merged together!
+      let i = 0;
+      while (i < commentRows.length) {
+        let curr = commentRows[i].text;
+        while (i + 1 < commentRows.length && (commentRows[i].y - commentRows[i + 1].y) <= 16) {
+          curr += ' ' + commentRows[i + 1].text;
+          i++;
+        }
+        if (isValidComment(curr)) {
+          comments.push(curr.trim().replace(/\s+/g, ' '));
+        }
+        i++;
+      }
+    }
+  }
+
+  // Pass 3: If NO raw comments pages were found (e.g. pure 1-page Action Taken Report PDF)
+  // Extract bulleted items from the "Needs Attention" and "Appreciation" table columns
+  if (comments.length === 0) {
+    for (let p = 1; p <= doc.numPages; p++) {
+      const page = await doc.getPage(p);
+      const tc = await page.getTextContent();
+      const items = tc.items.filter(i => i.str && i.str.trim());
+      const fullText = items.map(i => i.str).join(' ').toLowerCase();
+
+      if (fullText.includes('action taken report') || (fullText.includes('needs attention') && fullText.includes('appreciation'))) {
+        const tableComments = items
+          .filter(i => i.transform[4] >= 370 && i.transform[4] < 680 && i.transform[5] < 340)
+          .map(i => i.str)
+          .join(' ');
+        
+        const bullets = tableComments.split(/•/).map(s => s.trim()).filter(Boolean);
+        bullets.forEach(b => {
+          if (!/^(good|very good|excellent|below average):\s*\d+%/i.test(b) && isValidComment(b)) {
+            comments.push(b.trim().replace(/\s+/g, ' '));
+          }
+        });
+      }
+    }
+  }
+
   const unique = [...new Set(comments)];
   console.log(`[PDF] Extracted ${unique.length} student comments for AI analysis`);
   return unique;
@@ -295,201 +332,98 @@ async function fetchPDFBuffer(url) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// METADATA EXTRACTION
-// Reads the faculty table header + data row pattern:
-//   Header row: "Faculty Name | Course Code | Course Name | Semester ..."
-//   Data row:   "Tanuja | Sharma | 16242202-Batch-A | Software Engineering | 4 ..."
+// METADATA EXTRACTION (MULTI-FORMAT)
+// Correctly parses both MITS formats:
+// Format 2: Standard MITS Faculty Feedback Form (header + data row)
+// Format 1: Action Taken Report Summary Table
+// Fallback: Robust field-level regular expressions
 // ─────────────────────────────────────────────────────────────────
 async function extractMetaFromBuffer(buffer) {
   const uint8 = new Uint8Array(buffer);
   const doc = await pdfjsLib.getDocument({ data: uint8, verbosity: 0 }).promise;
 
-  // Read first page — header table is always there
-  const page = await doc.getPage(1);
-  const tc = await page.getTextContent();
+  let bestMeta = null;
 
-  // Group text items by Y row (within 4px tolerance)
-  const items = tc.items
-    .filter(i => i.str && i.str.trim())
-    .map(i => ({ str: i.str.trim(), x: i.transform[4], y: i.transform[5] }));
+  // Format 2 Regex (Standard MITS Individual Feedback Form Table)
+  const fmt2Regex = /Faculty\s+Name\s+Course\s+Code\s+Course\s+Name\s+Semester\s+Registered\s+Students\s+Link\s+Send\s+to\s+Students\s+Response\s+%\s*Resp\.?\s+FFI\s+([A-Za-z\s.]+?)\s+(\d{5,}(?:\s*-\s*Batch\s*-\s*[A-Z0-9]+|\s*-\s*[A-Za-z0-9]+|\s+Batch\s*-\s*[A-Z0-9]+)?)\s+(.+?)\s+(\d{1,2})\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/i;
 
-  // Build rows: { yKey -> [{str, x}] } sorted by x
-  const rowMap = {};
-  items.forEach(item => {
-    const yKey = Math.round(item.y / 4) * 4;
-    if (!rowMap[yKey]) rowMap[yKey] = [];
-    rowMap[yKey].push(item);
-  });
+  // Format 1 Regex (Action Taken Report Table)
+  const fmt1Regex = /Faculty\s+Name\s+Code\s*\/\s*Batch\s+Programme\s+Sem(?:ester)?\s+FFI\s+Resp\.?\s+Needs\s+Attention\s+Appreciation\s+Action\s+Taken\s+Faculty\s+Signature\s+(\d+)\s+([A-Za-z\s.]+?)\s+(\d{5,}(?:\s*Batch\s*-\s*[A-Z0-9]+|\s*-\s*[A-Za-z0-9]+)?)\s+(.+?)\s+(\d{1,2})\s+(\d+(?:\.\d+)?)\s+([\d\-]+)/i;
 
-  // Sort each row by x position
-  Object.values(rowMap).forEach(row => row.sort((a, b) => a.x - b.x));
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    const text = tc.items.map(i => i.str.trim()).filter(Boolean).join(' ');
 
-  // Find the header row containing "Faculty" and "Name" and "Course"
-  let headerY = null;
-  let dataY = null;
-
-  const yKeys = Object.keys(rowMap).map(Number).sort((a, b) => b - a); // top to bottom
-
-  for (const y of yKeys) {
-    const rowText = rowMap[y].map(i => i.str.toLowerCase()).join(' ');
-    // Detect new "S.No | Name of Faculty | Code / Subject / Batch | Programme & Semester"
-    // Or old "Faculty | Course Code | Course Name | Semester"
-    if (rowText.includes('faculty') && (rowText.includes('code') || rowText.includes('subject')) && (rowText.includes('semester') || rowText.includes('sem') || rowText.includes('programme'))) {
-      headerY = y;
-      // Data row is the next substantial row below header (skip single-item rows)
-      const lowerRows = yKeys.filter(k => k < y).sort((a, b) => b - a);
-      for (const ky of lowerRows) {
-        if (rowMap[ky].length >= 5) { // must have at least 5 items (real data row)
-          dataY = ky;
-          break;
-        }
-      }
+    const m2 = text.match(fmt2Regex);
+    if (m2) {
+      bestMeta = {
+        facultyName: m2[1].trim(),
+        subjectCode: m2[2].replace(/\s+/g, '-').replace(/-+/g, '-'),
+        programme: m2[3].trim(),
+        semester: m2[4].trim(),
+        registeredStudents: parseInt(m2[5], 10),
+        linkSent: parseInt(m2[6], 10),
+        responseCount: parseInt(m2[7], 10),
+        responsePercent: parseFloat(m2[8]),
+        ffiScore: parseFloat(m2[9])
+      };
+      // Format 2 is the most detailed and accurate, stop if found
       break;
     }
-  }
 
-  const meta = { facultyName: '', subjectCode: '', programme: '', semester: '' };
-
-  if (!headerY || !dataY) {
-    const fullText = items.map(i => i.str).join('\n');
-    return extractMetaFromText(fullText);
-  }
-
-  // From debug output, the data row x positions are:
-  // x~72-130:  Faculty Name (first + last name)
-  // x~155-240: Course Code (e.g. "16242202-Batch-A")
-  // x~259-315: Course Name (e.g. "Software Engineering") — may also be on row above
-  // x~317-360: Semester (e.g. "4")
-  // We use the header row to dynamically find these x boundaries
-
-  const headerItems = rowMap[headerY];
-  const dataItems = rowMap[dataY];
-
-  // Find x of a header item matching keywords
-  function headerX(kws) {
-    for (const item of headerItems) {
-      if (kws.some(kw => item.str.toLowerCase().includes(kw))) return item.x;
-    }
-    return null;
-  }
-
-  // Get sorted unique x positions from header to find column right boundaries
-  const headerXs = [...new Set(headerItems.map(i => Math.round(i.x)))].sort((a, b) => a - b);
-  function nextX(x) {
-    const idx = headerXs.findIndex(hx => Math.abs(hx - x) < 15);
-    return idx >= 0 && idx + 1 < headerXs.length ? headerXs[idx + 1] : 9999;
-  }
-
-  // Collect data items in x range across multiple rows
-  function collect(x1, x2, extraYs) {
-    const ys = [dataY, ...(extraYs || [])];
-    const parts = [];
-    ys.forEach(yk => {
-      (rowMap[yk] || [])
-        .filter(i => i.x >= x1 - 10 && i.x < x2 - 5)
-        .forEach(i => parts.push(i.str));
-    });
-    return parts.join(' ').trim().replace(/\s+/g, ' ');
-  }
-
-  // Pre-compute all column x positions from header
-  // From debug: Faculty=72, Course(Code)=155.9, Course(Name)=259.1, Semester=317.8, FFI=547.2
-  const facultyHeaderX  = headerX(['faculty']);
-  const courseHeaders   = headerItems.filter(i => i.str.toLowerCase() === 'course').sort((a,b) => a.x - b.x);
-  const firstCourseX    = courseHeaders[0]?.x ?? null;   // Course Code column (~155)
-  const secondCourseX   = courseHeaders[1]?.x ?? null;   // Course Name column (~259)
-  const semesterHeaderX = headerX(['semester', 'sem']);   // ~317
-
-  // Faculty Name: from "Faculty" x to first "Course" x
-  if (facultyHeaderX !== null && firstCourseX !== null) {
-    meta.facultyName = collect(facultyHeaderX, firstCourseX);
-  }
-
-  // Subject Code: from first "Course" x to second "Course" x
-  // Only take the first alphanumeric code token (e.g. "16242202") + batch suffix
-  if (firstCourseX !== null) {
-    const nX = secondCourseX ?? semesterHeaderX ?? 9999;
-    const raw = collect(firstCourseX, nX).trim();
-    // The course code cell may contain: "16242202-Batch-A" or "16242202 Batch-A" or "16242202 Batch A"
-    // Step 1: collapse all whitespace around hyphens
-    const cleaned = raw.replace(/\s*-\s*/g, '-').trim();
-    // Step 2: find the code — digits followed by any -word parts (including Batch-A)
-    // Also handle space-separated: "16242202 Batch-A" → treat space before Batch as hyphen
-    const withBatch = cleaned.replace(/(\d{5,})\s+([A-Za-z])/g, '$1-$2');
-    const codeMatch = withBatch.match(/\d{5,}(?:-[A-Za-z0-9]+)*/);
-    meta.subjectCode = codeMatch ? codeMatch[0] : raw.split(/[\s]+/)[0];
-    console.log(`[PDF Meta] raw:"${raw}" → code:"${meta.subjectCode}"`);
-  }
-
-  // Programme (Course Name): from second "Course" x to "Semester" x
-  // Also check row above dataY for multi-line course name
-  if (secondCourseX !== null) {
-    const nX = semesterHeaderX ?? 9999;
-    const aboveYs = yKeys.filter(k => k > dataY && k <= dataY + 25);
-    const aboveParts = [];
-    aboveYs.forEach(yk => {
-      (rowMap[yk] || []).filter(i => i.x >= secondCourseX - 10 && i.x < nX - 5).forEach(i => aboveParts.push(i.str));
-    });
-    const dataParts = (rowMap[dataY] || []).filter(i => i.x >= secondCourseX - 10 && i.x < nX - 5).map(i => i.str);
-    meta.programme = [...aboveParts, ...dataParts].join(' ').trim().replace(/\s+/g, ' ');
-  }
-
-  // Semester: single value at "Semester" column (width ~40px)
-  if (semesterHeaderX !== null) {
-    const semItems = (rowMap[dataY] || []).filter(i => i.x >= semesterHeaderX - 10 && i.x < semesterHeaderX + 40);
-    meta.semester = semItems.map(i => i.str).join('').trim();
-  }
-
-  // FFI Score: rightmost decimal number in the data row
-  const dataRowItems = rowMap[dataY] || [];
-  const ffiItem = dataRowItems.filter(i => /^\d+\.\d+$/.test(i.str)).sort((a, b) => b.x - a.x)[0];
-  meta.ffiScore = ffiItem ? parseFloat(ffiItem.str) : null;
-
-  // Response Count: Look for an integer or percentage to the RIGHT of FFI score
-  const ffiX = ffiItem ? ffiItem.x : 270;
-  // Search for an integer between FFI and 100px to its right
-  const respItem = dataRowItems.find(i => i.x > ffiX + 10 && i.x < ffiX + 100 && /^\d+%?$/.test(i.str.trim()));
-  meta.responseCount = respItem ? parseInt(respItem.str.replace('%', '').trim(), 10) : null;
-
-  // GLOBAL FALLBACK Pattern Recognition
-  if (meta.responseCount === null) {
-     const fullText = items.map(i => i.str).join(" ");
-     const m = fullText.match(/Respon[sc]e[ \t]*%?[ \t]*[:\-]?\s*(\d+)%?/i) || 
-               fullText.match(/Resp[ \t]*%?[ \t]*[:\-]?\s*(\d+)%?/i) ||
-               fullText.match(/Ans[ \t]*[:\-]?\s*(\d+)%?/i);
-     if (m) meta.responseCount = parseInt(m[1], 10);
-  }
-
-  return meta;
-}
-
-function extractMetaFromText(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const meta = { facultyName: '', subjectCode: '', programme: '', semester: '', responseCount: null };
-  const patterns = {
-    facultyName: [/faculty\s*name\s*[:\-]\s*(.+)/i, /name\s+of\s+faculty\s*[:\-]\s*(.+)/i, /faculty\s*[:\-]\s*(.+)/i, /teacher\s*[:\-]\s*(.+)/i],
-    subjectCode: [/code\s*\/\s*subject\s*[:\-]\s*(.+)/i, /subject\s*code\s*[:\-]\s*([A-Z0-9\s\-]+)/i, /course\s*code\s*[:\-]\s*([A-Z0-9\s\-]+)/i, /code\s*[:\-]\s*([A-Z0-9\-]{3,15})/i],
-    programme: [/programme\s*&\s*semester\s*[:\-]\s*(.+)/i, /programme\s*[:\-]\s*(.+)/i, /program\s*[:\-]\s*(.+)/i, /branch\s*[:\-]\s*(.+)/i, /department\s*[:\-]\s*(.+)/i],
-    semester: [/semester\s*[:\-]\s*(\w+)/i, /sem\s*[:\-]\s*(\w+)/i, /(\d+)\s*(?:st|nd|rd|th)\s*sem/i]
-  };
-  const fullText = lines.join('\n');
-  for (const [field, regexList] of Object.entries(patterns)) {
-    for (const regex of regexList) {
-      const match = fullText.match(regex);
-      if (match) {
-        const value = (match[1] || match[0] || '').trim().replace(/\s+/g, ' ');
-        if (value.length > 1 && value.length < 80) { meta[field] = value; break; }
+    if (!bestMeta) {
+      const m1 = text.match(fmt1Regex);
+      if (m1) {
+        bestMeta = {
+          facultyName: m1[2].trim(),
+          subjectCode: m1[3].replace(/\s+/g, '-').replace(/-+/g, '-'),
+          programme: m1[4].trim(),
+          semester: m1[5].trim(),
+          ffiScore: parseFloat(m1[6]),
+          responseCount: /^\d+$/.test(m1[7]) ? parseInt(m1[7], 10) : null
+        };
       }
     }
   }
-  if (!meta.facultyName) {
-    for (const line of lines) {
-      if (/^(dr|prof|mr|mrs|ms)\.?\s+\w+/i.test(line) && line.length < 60) {
-        meta.facultyName = line.trim(); break;
+
+  // Fallback if full table header regex missed
+  if (!bestMeta) {
+    let facultyName = '', subjectCode = '', programme = '', semester = '', ffiScore = null, responseCount = null;
+    for (let p = 1; p <= doc.numPages; p++) {
+      const page = await doc.getPage(p);
+      const tc = await page.getTextContent();
+      const fullText = tc.items.map(i => i.str.trim()).filter(Boolean).join(' ');
+
+      if (!facultyName) {
+        const m = fullText.match(/(?:faculty\s*name|name\s*of\s*faculty)\s*[:\-]?\s*([A-Za-z\s.]+?)(?=\s+(?:course|code|programme|semester|$))/i);
+        if (m && m[1].trim().length > 2) facultyName = m[1].trim();
+      }
+      if (!subjectCode) {
+        const m = fullText.match(/(?:course\s*code|code\s*\/\s*batch|code)\s*[:\-]?\s*(\d{5,}(?:\s*-\s*Batch\s*-\s*[A-Z0-9]+|\s*-\s*[A-Za-z0-9]+)?)/i);
+        if (m) subjectCode = m[1].replace(/\s+/g, '-').replace(/-+/g, '-');
+      }
+      if (!programme) {
+        const m = fullText.match(/(?:course\s*name|programme|branch)\s*[:\-]?\s*([A-Za-z\s&]+?)(?=\s+(?:semester|sem|\d{1,2}|$))/i);
+        if (m && m[1].trim().length > 2) programme = m[1].trim();
+      }
+      if (!semester) {
+        const m = fullText.match(/(?:semester|sem)\s*[:\-]?\s*(\d{1,2})\b/i);
+        if (m) semester = m[1];
+      }
+      if (ffiScore === null) {
+        const m = fullText.match(/(?:ffi\s*score|ffi|average\s*ffi)\s*[:\-–]?\s*(\d+\.\d+)/i);
+        if (m) ffiScore = parseFloat(m[1]);
+      }
+      if (responseCount === null) {
+        const m = fullText.match(/(?:submitted\s*answers|responses?)\s*[:\-–]?\s*(\d+)/i);
+        if (m) responseCount = parseInt(m[1], 10);
       }
     }
+    bestMeta = { facultyName, subjectCode, programme, semester, ffiScore, responseCount };
   }
-  return meta;
+
+  return bestMeta;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -550,11 +484,9 @@ function calculateCommentPercentages(allComments, responseCount) {
 async function analyzePDFBuffer(buffer) {
   const { analyzeCommentsWithAI } = require('./aiAnalyzer');
 
-  // Run meta extraction and full text extraction in parallel
-  const [meta, allComments] = await Promise.all([
-    extractMetaFromBuffer(buffer),
-    extractAllStudentComments(buffer)
-  ]);
+  // Extract meta first, then extract comments (targeted to detected subject code)
+  const meta = await extractMetaFromBuffer(buffer);
+  const allComments = await extractAllStudentComments(buffer, meta?.subjectCode);
 
   let appreciation = [];
   let commentsNeedingAttention = [];

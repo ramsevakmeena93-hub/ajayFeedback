@@ -107,7 +107,6 @@ export default function BackendLogTerminal({ token, onClose }) {
 
   return (
     <div
-      style={{ position: 'fixed', inset: '1.5rem', zIndex: 9999 }}
       className="rounded-2xl shadow-2xl flex flex-col overflow-hidden"
       style={{ position: 'fixed', inset: '1.5rem', zIndex: 9999, background: '#0a0d14', border: '1px solid rgba(255,255,255,0.08)' }}
     >

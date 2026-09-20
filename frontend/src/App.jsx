@@ -60,27 +60,17 @@ function ProtectedRoute({ children, role, workspace }) {
     ...(user.role ? [user.role] : []),
   ]);
 
+  // Every HOD inherently holds faculty access for their own taught subjects
+  if (user.role === 'hod' || userRoles.has('hod')) {
+    userRoles.add('hod');
+    userRoles.add('faculty');
+  }
+
   // Normalise allowed roles to array
   if (role) {
     const allowedRoles = Array.isArray(role) ? role : [role];
     const hasRole = allowedRoles.some(r => userRoles.has(r));
     if (!hasRole) return <Navigate to="/login" replace />;
-  }
-
-  // Optional workspace check (UX guard — not a security boundary)
-  if (workspace) {
-    const allowedWS = Array.isArray(workspace) ? workspace : [workspace];
-    const activeWS  = user.activeWorkspace || user.role;
-    if (!allowedWS.includes(activeWS)) {
-      // Multi-role user is on the wrong workspace — redirect them to the
-      // workspace they're currently in rather than kicking to /login
-      const dest = activeWS === 'hod'     ? '/hod'
-                 : activeWS === 'vc'      ? '/vc'
-                 : activeWS === 'faculty' ? '/faculty'
-                 : activeWS === 'admin'   ? '/admin'
-                 : '/dashboard';
-      return <Navigate to={dest} replace />;
-    }
   }
 
   return children;

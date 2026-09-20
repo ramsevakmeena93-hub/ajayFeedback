@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LogOut, Bell, Settings, Sun, Moon, Home,
   CheckCheck, X, User, ChevronDown, Clock,
-  LayoutDashboard, History, BarChart3, PenLine
+  LayoutDashboard, History, BarChart3, PenLine,
+  GraduationCap, Users, ArrowLeftRight
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
@@ -46,7 +47,7 @@ function timeAgo(date) {
 }
 
 export default function Navbar({ title, subtitle }) {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -59,7 +60,11 @@ export default function Navbar({ title, subtitle }) {
   const [showSigModal, setShowSigModal] = useState(false);
   const [sigPreview, setSigPreview] = useState(null);
   const [sigSaving, setSigSaving] = useState(false);
+  const [switchingWS, setSwitchingWS] = useState(false);
   const sigRef = useRef();
+
+  const isHOD = user?.role === 'hod' || (user?.roles && user.roles.includes('hod'));
+  const activeWS = user?.activeWorkspace || (location.pathname.startsWith('/faculty') ? 'faculty' : (user?.role || 'hod'));
 
   const userMenuRef = useRef();
   const notifRef = useRef();
@@ -149,6 +154,23 @@ export default function Navbar({ title, subtitle }) {
   const navLinks = NAV_LINKS[role] || [];
   const initials = user?.name ? user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U";
 
+  async function handleQuickSwitch(targetWS) {
+    if (targetWS === activeWS || switchingWS) return;
+    setSwitchingWS(true);
+    try {
+      const res = await api().post("/api/workspace/switch", { workspace: targetWS });
+      if (res.data.token && res.data.user) {
+        login(res.data.user, res.data.token);
+        toast.success(`Switched to ${targetWS === 'faculty' ? 'Faculty (My Teaching)' : 'HOD (Department Overview)'}`);
+        navigate(targetWS === 'faculty' ? '/faculty' : '/hod');
+      }
+    } catch (err) {
+      navigate(targetWS === 'faculty' ? '/faculty' : '/hod');
+    } finally {
+      setSwitchingWS(false);
+    }
+  }
+
   return (
     <>
     <nav className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm">
@@ -198,9 +220,37 @@ export default function Navbar({ title, subtitle }) {
           )}
 
           {/* Right — Actions */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
 
-            {/* Workspace Switcher — only shows for multi-role users */}
+            {/* HOD / Faculty Dual-Role Quick Toggle Button */}
+            {isHOD && (
+              <button
+                onClick={() => handleQuickSwitch(activeWS === 'faculty' ? 'hod' : 'faculty')}
+                disabled={switchingWS}
+                className={`hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm transform hover:scale-[1.03] active:scale-[0.98] border cursor-pointer ${
+                  activeWS === 'faculty'
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-400/40 shadow-blue-500/25"
+                    : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-emerald-400/40 shadow-emerald-500/25"
+                }`}
+                title={activeWS === 'faculty' ? "Switch to HOD Department Management Dashboard" : "You teach subjects too! Switch to view your personal faculty feedback & subjects"}
+              >
+                {activeWS === 'faculty' ? (
+                  <>
+                    <Users size={14} className="text-blue-200" />
+                    <span>HOD View</span>
+                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold tracking-wide">Dept</span>
+                  </>
+                ) : (
+                  <>
+                    <GraduationCap size={15} className="text-emerald-200" />
+                    <span>My Teaching</span>
+                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold tracking-wide">Faculty View</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Workspace Switcher — only shows for multi-role users with > 2 roles or custom setups */}
             <WorkspaceSwitcher />
 
             {/* Theme toggle */}

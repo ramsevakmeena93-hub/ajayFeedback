@@ -75,10 +75,13 @@ const userSchema = new mongoose.Schema({
   signatureUploadedAt:  { type: Date },
   signatureStatus:      { type: String, enum: ['pending', 'verified', 'rejected', ''], default: '' },
 
-  // Google OAuth
+  // Google OAuth & Drive
   googleId:      { type: String, default: '' },
   googleVerified:{ type: Boolean, default: false },
-
+  googleDriveRefreshToken: { type: String, default: '' },
+  googleDriveAccessToken:  { type: String, default: '' },
+  googleDriveConnected:    { type: Boolean, default: false },
+  googleDriveEmail:        { type: String, default: '' },
 }, { timestamps: true });
 
 // Virtual: short employee ID derived from _id

@@ -9,6 +9,7 @@ import { CheckCircle, Clock, ExternalLink, ChevronDown, ChevronUp, TrendingUp, T
 
 // ── GRADE BADGE ──────────────────────────────────────────────────
 function GradeBadge({ grade }) {
+  if (!grade) return null;
   const colors = { 'A+': 'bg-emerald-100 text-emerald-800 border-emerald-300', 'A': 'bg-green-100 text-green-800 border-green-300', 'B+': 'bg-blue-100 text-blue-800 border-blue-300', 'B': 'bg-indigo-100 text-indigo-800 border-indigo-300', 'C+': 'bg-amber-100 text-amber-800 border-amber-300', 'C': 'bg-red-100 text-red-800 border-red-300' };
   return <span className={`text-2xl font-black px-4 py-1 rounded-xl border-2 ${colors[grade] || colors['C']}`}>{grade}</span>;
 }
@@ -16,7 +17,7 @@ function GradeBadge({ grade }) {
 // ── REPORT CARD ──────────────────────────────────────────────────
 function ReportCard({ report, onAcknowledge, acknowledging }) {
   const [expanded, setExpanded] = useState(false);
-  const approved = report.status === 'faculty_approved';
+  const approved = report?.status === 'faculty_approved';
 
   return (
     <div className={`card overflow-hidden border-l-4 ${approved ? 'border-l-green-600' : 'border-l-amber-500'}`}>
@@ -27,39 +28,39 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
               <span className={approved ? 'badge-green' : 'badge-gray'}>
                 {approved ? '✓ Acknowledged' : '⏳ Pending Review'}
               </span>
-              {report.semester && <span className="badge-blue">Sem {report.semester}</span>}
-              {report.academicYear && <span className="badge-gray">{report.academicYear}</span>}
-              {report.ffiScore != null && (
+              {report?.semester && <span className="badge-blue">Sem {report.semester}</span>}
+              {report?.academicYear && <span className="badge-gray">{report.academicYear}</span>}
+              {report?.ffiScore != null && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${report.ffiScore >= 4 ? 'bg-green-100 text-green-700' : report.ffiScore >= 3 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                   FFI: {report.ffiScore.toFixed(2)}
                 </span>
               )}
-              {(report.responseCount ?? report.totalResponses) != null && (
+              {(report?.responseCount ?? report?.totalResponses) != null && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                   Resp: {report.responseCount ?? report.totalResponses}
                 </span>
               )}
             </div>
-            <h3 className="font-bold text-slate-800 text-base">{report.facultyName || 'Your Report'}</h3>
+            <h3 className="font-bold text-slate-800 text-base">{report?.facultyName || 'Your Report'}</h3>
             <p className="text-slate-500 text-sm mt-0.5">
-              {[report.subjectCode, report.programme].filter(Boolean).join(' · ') || 'No details'}
+              {[report?.subjectCode, report?.programme].filter(Boolean).join(' · ') || 'No details'}
             </p>
-            {report.driveLink && (
-              <a href={report.driveLink} target="_blank" rel="noopener noreferrer"
+            {report?._id && (
+              <a href={`/api/reports/${report._id}/pdf`} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-blue-900 hover:underline mt-2 font-medium">
-                <ExternalLink size={12} /> View Original PDF
+                <ExternalLink size={12} /> View Feedback PDF
               </a>
             )}
           </div>
           <div className="flex flex-col gap-2 items-end shrink-0">
             {!approved && (
-              <button onClick={() => onAcknowledge(report._id)} disabled={acknowledging === report._id}
+              <button onClick={() => onAcknowledge(report?._id)} disabled={acknowledging === report?._id}
                 className="btn btn-success btn-sm">
                 <CheckCircle size={14} />
-                {acknowledging === report._id ? 'Confirming...' : 'I have seen this'}
+                {acknowledging === report?._id ? 'Confirming...' : 'I have seen this'}
               </button>
             )}
-            {approved && <p className="text-xs text-slate-400">Acknowledged {report.facultyAcknowledgedAt ? new Date(report.facultyAcknowledgedAt).toLocaleDateString('en-IN') : ''}</p>}
+            {approved && <p className="text-xs text-slate-400">Acknowledged {report?.facultyAcknowledgedAt ? new Date(report.facultyAcknowledgedAt).toLocaleDateString('en-IN') : ''}</p>}
             <button onClick={() => setExpanded(e => !e)} className="btn btn-secondary btn-sm">
               {expanded ? <><ChevronUp size={12} />Hide</> : <><ChevronDown size={12} />View Details</>}
             </button>
@@ -70,7 +71,7 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
         {expanded && (
           <div className="mt-4 pt-4 border-t space-y-4">
             {/* Comment percentages */}
-            {report.commentPercentages && Object.keys(report.commentPercentages).length > 0 && (
+            {report?.commentPercentages && Object.keys(report.commentPercentages).length > 0 && (
               <div className="bg-red-50 border border-red-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-3">Appreciation Breakdown</p>
                 <div className="space-y-2">
@@ -92,10 +93,10 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
               <div className="rounded-xl border border-amber-200 overflow-hidden">
                 <div className="bg-amber-50 px-3 py-2 flex items-center justify-between">
                   <span className="text-xs font-semibold text-amber-700">🟡 Comments Needing Attention</span>
-                  <span className="badge-yellow">{report.commentsNeedingAttention?.length || 0}</span>
+                  <span className="badge-yellow">{report?.commentsNeedingAttention?.length || 0}</span>
                 </div>
                 <div className="p-3 space-y-1.5 max-h-48 overflow-y-auto">
-                  {!report.commentsNeedingAttention?.length ? (
+                  {!report?.commentsNeedingAttention?.length ? (
                     <p className="text-xs text-slate-400 italic">None found</p>
                   ) : report.commentsNeedingAttention.map((t, i) => (
                     <div key={i} className="flex gap-2 text-xs text-slate-700 bg-amber-50 border border-amber-100 rounded px-2 py-1.5">
@@ -109,10 +110,10 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
               <div className="rounded-xl border border-red-200 overflow-hidden">
                 <div className="bg-red-50 px-3 py-2 flex items-center justify-between">
                   <span className="text-xs font-semibold text-red-700">🔴 Appreciation</span>
-                  <span className="badge-red">{report.appreciation?.length || 0}</span>
+                  <span className="badge-red">{report?.appreciation?.length || 0}</span>
                 </div>
                 <div className="p-3 space-y-1.5 max-h-48 overflow-y-auto">
-                  {!report.appreciation?.length ? (
+                  {!report?.appreciation?.length ? (
                     <p className="text-xs text-slate-400 italic">None found</p>
                   ) : report.appreciation.map((t, i) => (
                     <div key={i} className="flex gap-2 text-xs text-slate-700 bg-red-50 border border-red-100 rounded px-2 py-1.5">
@@ -124,15 +125,15 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
             </div>
 
             {/* HOD Remarks & Action Taken */}
-            {(report.hodRemarks || report.actionTaken) && (
+            {(report?.hodRemarks || report?.actionTaken) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {report.hodRemarks && (
+                {report?.hodRemarks && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
                     <p className="text-xs font-semibold text-blue-700 mb-1">HOD Remarks</p>
                     <p className="text-xs text-slate-700">{report.hodRemarks}</p>
                   </div>
                 )}
-                {report.actionTaken && (
+                {report?.actionTaken && (
                   <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2">
                     <p className="text-xs font-semibold text-green-700 mb-1">Action Taken</p>
                     <p className="text-xs text-slate-700">{report.actionTaken}</p>
@@ -150,18 +151,29 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
 // ── ANALYSIS SECTION (COMBINED BASIC & ADVANCED) ─────────────────────────────────────────────
 function AnalysisSection({ summary, advancedData }) {
   if (!summary) return null;
-  const { avgFFI, grade, totalReports, totalAppreciation, totalAttention, ffiBySubject, commentPercentages } = summary;
+  const avgFFI = summary.avgFFI ?? 0;
+  const grade = summary.grade || 'C';
+  const totalReports = summary.totalReports || 0;
+  const totalAppreciation = summary.totalAppreciation || 0;
+  const totalAttention = summary.totalAttention || 0;
+  const ffiBySubject = summary.ffiBySubject || [];
+  const commentPercentages = summary.commentPercentages || {};
 
-  const ffiChartData = ffiBySubject.map(s => ({
-    name: s.subject.length > 10 ? s.subject.substring(0, 10) + '...' : s.subject,
-    FFI: s.ffi,
-    fullName: s.subject
-  }));
+  const ffiChartData = ffiBySubject.map(s => {
+    const subjName = s?.subject || 'Unknown';
+    return {
+      name: subjName.length > 10 ? subjName.substring(0, 10) + '...' : subjName,
+      FFI: s?.ffi || 0,
+      fullName: subjName
+    };
+  });
 
   const pieData = [
     { name: 'Appreciation', value: totalAppreciation, fill: '#6366f1' }, // Indigo
     { name: 'Needs Attention', value: totalAttention, fill: '#f59e0b' },   // Amber
   ].filter(d => d.value > 0);
+
+  const totalComments = totalAppreciation + totalAttention;
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-100">
@@ -328,7 +340,7 @@ function AnalysisSection({ summary, advancedData }) {
                       <span className="text-xs font-semibold text-slate-650 dark:text-slate-350">{item.name}</span>
                     </div>
                     <span className="text-xs font-black text-slate-800 dark:text-slate-100">
-                      {item.value} comments ({Math.round((item.value / (totalAppreciation + totalAttention)) * 100)}%)
+                      {item.value} comments ({totalComments > 0 ? Math.round((item.value / totalComments) * 100) : 0}%)
                     </span>
                   </div>
                 ))}
@@ -341,7 +353,7 @@ function AnalysisSection({ summary, advancedData }) {
       {/* ── 5. Teaching Dimensions & Appreciation Breakdown ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Teaching Weakness Areas */}
-        {advancedData?.dimensions && (
+        {advancedData?.dimensions && Object.keys(advancedData.dimensions).length > 0 && (
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 hover:shadow-md transition-shadow">
             <h3 className="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-widest mb-1.5 flex items-center justify-between">
               <span>🎯 Teaching Dimension Complaints Tracker</span>
@@ -369,7 +381,7 @@ function AnalysisSection({ summary, advancedData }) {
         )}
 
         {/* Appreciation Breakdown */}
-        {Object.keys(commentPercentages).length > 0 && (
+        {commentPercentages && Object.keys(commentPercentages).length > 0 && (
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 hover:shadow-md transition-shadow flex flex-col justify-between">
             <div>
               <h3 className="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-widest mb-4">
@@ -395,7 +407,7 @@ function AnalysisSection({ summary, advancedData }) {
       </div>
 
       {/* ── 6. Smart Recommendations ── */}
-      {advancedData?.recommendations?.length > 0 && (
+      {advancedData?.recommendations && advancedData.recommendations.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 hover:shadow-md transition-shadow">
           <h3 className="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
             <span>💡 AI-Powered Insights & Recommendations</span>
@@ -448,7 +460,7 @@ function AnalysisSection({ summary, advancedData }) {
       <div className="mt-4 flex items-center justify-between text-slate-400 dark:text-slate-500 text-xs">
         <span className="text-xs text-indigo-500 dark:text-indigo-400">Based on {totalReports} report{totalReports > 1 ? 's' : ''}</span>
         <span className="text-slate-300 dark:text-slate-700">·</span>
-        <span className="text-xs text-indigo-500 dark:text-indigo-400">{totalAppreciation + totalAttention} total comments analyzed</span>
+        <span className="text-xs text-indigo-500 dark:text-indigo-400">{totalComments} total comments analyzed</span>
       </div>
     </div>
   );
@@ -477,9 +489,10 @@ export default function FacultyDashboard() {
   }, [filterYear, filterSem, activeTab]);
 
   async function fetchNotifications() {
+    if (!token) return;
     try {
       const { data } = await api.get('/api/notifications');
-      const unreadForceApprove = (data.notifications || []).find(n => n.type === 'hod_force_approved' && !n.read);
+      const unreadForceApprove = (data?.notifications || []).find(n => n.type === 'hod_force_approved' && !n.read);
       if (unreadForceApprove) {
         setForceApproveNotif(unreadForceApprove);
       }
@@ -500,8 +513,8 @@ export default function FacultyDashboard() {
     if (!forceApproveNotif || !forceApproveNotif.reportId) return;
     try {
       const { data } = await api.get(`/api/reports/${forceApproveNotif.reportId}`);
-      if (data.driveLink) {
-        window.open(data.driveLink, '_blank');
+      if (data?._id) {
+        window.open(`/api/reports/${data._id}/pdf`, '_blank');
       } else {
         toast.error("Feedback PDF not found for this report.");
       }
@@ -518,19 +531,24 @@ export default function FacultyDashboard() {
       if (filterSem) params.append('semester', filterSem);
 
       const { data } = await api.get(`/api/reports/faculty/analysis?${params}`);
-      setReports(data.reports || []);
-      setSummary(data.summary);
-      if (data.summary?.years) setAvailableYears(data.summary.years);
-      if (data.summary?.semesters) setAvailableSems(data.summary.semesters);
+      setReports(data?.reports || []);
+      setSummary(data?.summary || null);
+      if (data?.summary?.years) setAvailableYears(data.summary.years);
+      if (data?.summary?.semesters) setAvailableSems(data.summary.semesters);
 
       // Concurrently load advanced analytics if analysis tab is active
       if (activeTab === 'analysis') {
-        const advRes = await api.get('/api/reports/faculty/advanced-analytics');
-        setAdvancedData(advRes.data);
+        try {
+          const advRes = await api.get('/api/reports/faculty/advanced-analytics');
+          setAdvancedData(advRes?.data || null);
+        } catch {
+          setAdvancedData(null);
+        }
       }
     } catch (err) {
       if (err.response?.status === 401) { logout(); return; }
-      toast.error('Failed to load data');
+      setReports([]);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -664,8 +682,8 @@ export default function FacultyDashboard() {
                               <tr key={report._id} className={`hover:bg-slate-50 align-top transition-colors ${!approved ? 'bg-amber-50/30' : ''}`}>
                                 <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                                   {report.facultyName || '—'}
-                                  {report.driveLink && (
-                                    <a href={report.driveLink} target="_blank" rel="noopener noreferrer"
+                                  {report._id && (
+                                    <a href={`/api/reports/${report._id}/pdf`} target="_blank" rel="noopener noreferrer"
                                       className="block text-xs text-indigo-600 hover:underline mt-0.5 flex items-center gap-1">
                                       <ExternalLink size={10}/> View PDF
                                     </a>

@@ -1,12 +1,27 @@
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, ChevronRight, X, Loader } from "lucide-react";
 
 export default function CSVReviewModal({ currentData, currentIdx, total, processing, onOk, onClose }) {
   const isLast = currentIdx === total - 1;
   const progress = Math.round((currentIdx / total) * 100);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose && onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  const modalJSX = (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-scale-in">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-indigo-50 rounded-t-2xl">
@@ -85,8 +100,8 @@ export default function CSVReviewModal({ currentData, currentIdx, total, process
                     </div>
                   )}
                 </div>
-                {currentData.driveLink && (
-                  <a href={currentData.driveLink} target="_blank" rel="noopener noreferrer"
+                {currentData._id && (
+                  <a href={`/api/reports/${currentData._id}/pdf`} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-2">
                     <ExternalLink size={12} /> View Full PDF
                   </a>
@@ -184,4 +199,6 @@ export default function CSVReviewModal({ currentData, currentIdx, total, process
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalJSX, document.body) : modalJSX;
 }

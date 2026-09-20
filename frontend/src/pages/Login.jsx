@@ -1,96 +1,90 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
-import { GraduationCap, CheckCircle, ArrowLeft, Shield, Users } from "lucide-react";
+import {
+  GraduationCap,
+  CheckCircle,
+  ArrowLeft,
+  Shield,
+  Users,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  Sparkles
+} from "lucide-react";
 import mitsLogo from "../assets/mits-logo.png";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "1084044671986-10c6e17vbbl87d4fjdj2tqnbps9t55g7.apps.googleusercontent.com";
+const DEMO_ACCOUNTS = [
+  { role: "HOD", email: "hod@mits.ac.in", pass: "hod123", icon: "🏛️" },
+  { role: "Faculty", email: "faculty@mits.ac.in", pass: "faculty123", icon: "👨‍🏫" },
+  { role: "VC", email: "vc@mits.ac.in", pass: "vc123", icon: "🎓" },
+  { role: "Admin", email: "admin@mits.ac.in", pass: "admin123", icon: "🛡️" },
+];
 
 export default function Login() {
-  const navigate    = useNavigate();
+  const navigate = useNavigate();
   const { login, user } = useAuth();
-  const btnRef      = useRef(null);
-  const [ready, setReady] = useState(false);
 
-  // Already logged in → redirect
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Already logged in → redirect to dashboard
   useEffect(() => {
     if (user) go(user.activeWorkspace || user.role);
   }, [user]);
 
-  // Mount Google button
-  useEffect(() => {
-    function mount() {
-      if (!window.google?.accounts?.id || !btnRef.current) return;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback:  onCredential,
-        auto_select: false,
-      });
-      window.google.accounts.id.renderButton(btnRef.current, {
-        theme: "filled_blue",
-        size:  "large",
-        width: 340,
-        text:  "signin_with",
-        shape: "rectangular",
-        logo_alignment: "left",
-      });
-      setReady(true);
+  function go(role) {
+    const dest =
+      role === "vc"
+        ? "/vc"
+        : role === "faculty"
+        ? "/faculty"
+        : role === "admin"
+        ? "/admin"
+        : "/hod";
+    navigate(dest, { replace: true });
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!email || !password) {
+      return toast.error("Please enter both email and password");
     }
 
-    if (window.google?.accounts?.id) { mount(); return; }
-
-    // Dynamically load Google Identity Services script
-    if (!document.querySelector('script[src*="accounts.google.com/gsi"]')) {
-      const s  = document.createElement("script");
-      s.src    = "https://accounts.google.com/gsi/client";
-      s.async  = true;
-      s.defer  = true;
-      document.head.appendChild(s);
-    }
-
-    const iv = setInterval(() => {
-      if (window.google?.accounts?.id) { clearInterval(iv); mount(); }
-    }, 200);
-    return () => clearInterval(iv);
-  }, []);
-
-  async function onCredential(response) {
-    if (!response?.credential) {
-      toast.error("Google sign-in failed"); return;
-    }
+    setLoading(true);
     try {
-      const { data } = await axios.post("/api/auth/google", {
-        credential: response.credential,
+      const { data } = await axios.post("/api/auth/login", {
+        email: email.trim(),
+        password
       });
+
       login(data.user, data.token);
-      toast.success(`Welcome, ${data.user.name?.split(" ")[0]}! 👋`);
-      if (data.needsDeptSetup) navigate("/profile-completion", { replace: true });
-      else go(data.user.activeWorkspace || data.user.role);
+      toast.success(`Welcome back, ${data.user.name || "User"}! 👋`);
+      go(data.user.activeWorkspace || data.user.role);
     } catch (err) {
-      toast.error(
-        err.response?.data?.error ||
-        "Only @mitsgwalior.in accounts are allowed",
-        { duration: 6000 }
-      );
+      toast.error(err.response?.data?.error || "Invalid email or password");
+    } finally {
+      setLoading(false);
     }
   }
 
-  function go(role) {
-    const dest = role === "vc"      ? "/vc"
-               : role === "faculty" ? "/faculty"
-               : role === "admin"   ? "/admin"
-               : "/hod";
-    navigate(dest, { replace: true });
+  function fillDemo(acc) {
+    setEmail(acc.email);
+    setPassword(acc.pass);
+    toast.success(`Auto-filled ${acc.role} credentials!`);
   }
 
   return (
     <div className="min-h-screen flex bg-[#0a0f1e]">
-
-      {/* ── Left panel ── */}
+      {/* ── Left Branding Panel ── */}
       <div className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-violet-700 opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 opacity-90" />
         <div className="absolute inset-0 bg-[#0a0f1e]/30" />
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-float" />
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-white/10 rounded-full blur-3xl animate-float-slow" />
@@ -98,7 +92,7 @@ export default function Login() {
         <div className="relative flex flex-col h-full p-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/20 shrink-0 shadow-lg">
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/20 shrink-0 shadow-lg p-1">
               <img src={mitsLogo} alt="MITS" className="w-full h-full object-contain" />
             </div>
             <div>
@@ -112,14 +106,15 @@ export default function Login() {
               <GraduationCap size={36} className="text-white" />
             </div>
             <h2 className="text-4xl font-extrabold text-white mb-3">Welcome Back</h2>
-            <p className="text-white/60 text-lg mb-8">
-              Sign in with your MITS Google account
+            <p className="text-white/70 text-base mb-8">
+              Manual portal login for HODs, Faculties, VC, and Administrators.
             </p>
+
             <div className="space-y-3 mb-8">
               {[
-                "Use your @mitsgwalior.in Google account",
-                "Secure OAuth 2.0 — no password needed",
-                "Auto role detection after sign-in",
+                "Instant manual email and password authentication",
+                "Automated Google Drive batch PDF processing",
+                "AI-powered sentiment analysis and feedback metrics",
               ].map((t, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center shrink-0">
@@ -130,17 +125,17 @@ export default function Login() {
               ))}
             </div>
 
-            {/* Role grid */}
+            {/* Role Cards */}
             <div className="grid grid-cols-2 gap-2">
               {[
-                { icon: Users,        label: "HOD",     desc: "Manage reports" },
-                { icon: GraduationCap,label: "Faculty",  desc: "View feedback"  },
-                { icon: Shield,       label: "VC",       desc: "Approve final"  },
-                { icon: Shield,       label: "Admin",    desc: "System control" },
+                { icon: Users, label: "HOD", desc: "Batch upload & send" },
+                { icon: GraduationCap, label: "Faculty", desc: "View PDF feedback" },
+                { icon: Shield, label: "VC", desc: "Final report approval" },
+                { icon: Shield, label: "Admin", desc: "System management" },
               ].map(({ icon: Icon, label, desc }) => (
-                <div key={label} className="p-3 bg-white/10 rounded-xl border border-white/10">
+                <div key={label} className="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-sm">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <Icon size={11} className="text-blue-300" />
+                    <Icon size={12} className="text-blue-200" />
                     <span className="text-white text-xs font-bold">{label}</span>
                   </div>
                   <p className="text-white/50 text-[10px]">{desc}</p>
@@ -150,67 +145,135 @@ export default function Login() {
           </div>
 
           <p className="text-white/30 text-xs">
-            Automated Faculty Feedback Analysis System · MITS 2025–26
+            Faculty Feedback Analysis System · MITS Gwalior
           </p>
         </div>
       </div>
 
-      {/* ── Right panel ── */}
+      {/* ── Right Login Form Panel ── */}
       <div className="flex-1 flex flex-col">
-        <div className="px-6 lg:px-10 py-5">
+        <div className="px-6 lg:px-10 py-5 flex items-center justify-between">
           <button
             onClick={() => navigate("/landing")}
             className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition-colors"
           >
             <ArrowLeft size={16} /> Back to Home
           </button>
+          <Link
+            to="/register"
+            className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition"
+          >
+            Create an Account →
+          </Link>
         </div>
 
-        <div className="flex-1 flex items-center justify-center px-4 pb-8">
-          <div className="w-full max-w-sm animate-fade-up text-center">
-
-            {/* Logo */}
-            <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-              <img src={mitsLogo} alt="MITS" className="w-14 h-14 object-contain" />
+        <div className="flex-1 flex items-center justify-center px-4 pb-10">
+          <div className="w-full max-w-sm">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl p-2">
+                <img src={mitsLogo} alt="MITS" className="w-12 h-12 object-contain" />
+              </div>
+              <h1 className="text-2xl font-bold text-white">Sign In</h1>
+              <p className="text-slate-400 text-xs mt-1">
+                Enter your registered institutional credentials
+              </p>
             </div>
 
-            <h1 className="text-2xl font-bold text-white mb-2">Sign in to MITS</h1>
-            <p className="text-slate-400 text-sm mb-8">
-              Use your{" "}
-              <span className="text-blue-400 font-semibold">@mitsgwalior.in</span>{" "}
-              Google account
-            </p>
-
-            {/* Google button */}
-            <div className="flex flex-col items-center gap-4">
-              <div
-                ref={btnRef}
-                className="w-full flex items-center justify-center"
-                style={{ minHeight: 44 }}
-              />
-
-              {/* Loading placeholder (hidden once ready) */}
-              {!ready && (
-                <div className="w-full h-11 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-3">
-                  <svg className="w-5 h-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  <span className="text-slate-400 text-sm">Loading Google Sign-In…</span>
-                </div>
-              )}
-
-              {/* Note */}
-              <div className="w-full p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <p className="text-blue-300 text-xs leading-relaxed">
-                  🔒 Only <strong>@mitsgwalior.in</strong> institute accounts are accepted.
-                </p>
+            {/* Quick Demo Fill Buttons */}
+            <div className="mb-5 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-3">
+              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Sparkles size={12} className="text-blue-400" />
+                Quick Demo Login (Click to fill)
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {DEMO_ACCOUNTS.map(acc => (
+                  <button
+                    key={acc.role}
+                    type="button"
+                    onClick={() => fillDemo(acc)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/[0.05] hover:bg-blue-600/30 border border-white/[0.06] hover:border-blue-500/50 rounded-xl text-left transition text-xs text-slate-300 group"
+                  >
+                    <span>{acc.icon}</span>
+                    <span className="font-semibold group-hover:text-white">{acc.role}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <p className="text-slate-700 text-xs mt-8">
-              By signing in you agree to MITS institutional policies
-            </p>
+            {/* Manual Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail size={16} />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="e.g. hod@mits.ac.in"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/[0.05] border border-white/10 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                    Password
+                  </label>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock size={16} />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full pl-10 pr-10 py-2.5 bg-white/[0.05] border border-white/10 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 mt-2"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <LogIn size={16} /> Sign In
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-xs text-slate-400">
+              Don't have an account?{" "}
+              <Link to="/register" className="text-blue-400 hover:underline font-medium">
+                Register here
+              </Link>
+            </div>
           </div>
         </div>
       </div>

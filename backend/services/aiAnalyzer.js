@@ -66,9 +66,17 @@ const POSITIVE_PATTERNS = [
   // Satisfaction
   /fully satisfied/i, /completely satisfied/i, /very satisfied/i,
   /overall good/i, /overall great/i, /overall excellent/i, /overall nice/i,
+  /overall course/i, /conducted nicely/i, /nicely conducted/i,
+  /well conducted/i, /conducted well/i, /\bnicely\b/i,
   /overall satisf/i, /nothing to improve/i, /no improvement needed/i,
   /no suggestion/i, /no complaints/i, /everything is good/i,
   /everything good/i, /all good/i, /all is well/i,
+
+  // Qualities & Engagement
+  /^best+$/i, /\bbest{2,}\b/i,
+  /\b(punctual|interactive|approachable|supportive|cooperative|polite|friendly)\b/i,
+  /\b(engaging|engaging lectures?|informative|interesting)\b/i,
+  /explains? clearly/i, /gives clear explanation/i,
 
   // Encouragement
   /continue the same/i, /please continue/i, /keep going/i,
@@ -87,21 +95,38 @@ const POSITIVE_PATTERNS = [
 // NEGATIVE keyword patterns — attention needed
 // ─────────────────────────────────────────────────────────────────────────────
 const NEGATIVE_PATTERNS = [
+  // Negations of positive traits (MUST come first so "not great" is caught immediately)
+  /\b(not|never|hardly|rarely|barely)\s+(great|good|nice|clear|helpful|effective|satisfied|satisfactory|happy|cooperative|approachable|supportive|punctual|prepared|engaging|active|fair)\b/i,
+  /\bnot\s+a\s+good\b/i,
+  /\bnot\s+very\s+(good|nice|helpful|clear|effective)\b/i,
+  /\bnot\s+great\s+classes\b/i,
+
   // Clear negatives
-  /^no$/i, /^nil$/i, /^na$/i, /^n\/a$/i, /^none$/i, /^nothing$/i,
   /^poor$/i, /^bad$/i, /^worst$/i, /^terrible$/i, /^horrible$/i,
   /^average$/i, /^below average$/i, /^not good$/i, /^not great$/i,
 
-  // Improvement needed
+  // Improvement & Requests
   /need to improve/i, /needs improvement/i, /should improve/i,
   /must improve/i, /can improve/i, /could improve/i, /require improvement/i,
   /improve your/i, /improve the/i, /please improve/i,
+  /could be better/i, /scope for improvement/i,
+
+  // Academic complaints / Stress / Exams / Notes
+  /stressful/i, /too much stress/i, /hectic/i, /burden/i,
+  /difficult to study/i, /difficult to understand/i, /hard to follow/i,
+  /syllabus (is )?(too )?vast/i, /vast syllabus/i, /syllabus not covered/i,
+  /question bank.*(should|must|please|need|provide)/i, /provide question bank/i,
+  /quiz.*stressful/i, /all the subjects together/i,
+  /need.*more.*interactive/i, /more doubt.*sessions?/i, /doubt.*session.*needed/i,
 
   // Speed / pace issues
   /too fast/i, /very fast/i, /speaks fast/i, /teaching fast/i,
-  /talks fast/i, /goes fast/i, /rushes through/i,
+  /talks fast/i, /goes fast/i, /rushes through/i, /hurry/i,
   /too slow/i, /very slow/i, /slow speed/i, /slow pace/i,
   /reduce speed/i, /slow down/i,
+
+  // Voice & Audibility issues
+  /not audible/i, /low voice/i, /too low/i, /speak loudly/i, /voice is low/i,
 
   // Clarity issues
   /not clear/i, /unclear/i, /hard to understand/i, /difficult to understand/i,
@@ -143,7 +168,7 @@ const NEGATIVE_PATTERNS = [
   /lack of/i, /lacks/i, /problem with/i, /issue with/i,
   /dissatisfied/i, /not satisfied/i, /disappointing/i, /disappointed/i,
   /didn't like/i, /don't like/i, /did not like/i, /do not like/i,
-  /could be better/i, /waste of time/i, /boring/i, /bored/i,
+  /waste of time/i, /boring/i, /bored/i,
   /not helpful/i, /unhelpful/i,
   /not interested/i, /lost interest/i, /no interest/i,
   /not effective/i, /ineffective/i,
@@ -180,11 +205,16 @@ const NEGATIVE_PATTERNS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Skip / irrelevant patterns — empty or meaningless entries
+// Skip / irrelevant patterns — empty, filler, or "No complaints" answers
+// (Writing "No" or "NA" to suggestions means NO COMPLAINTS, not a negative issue)
 // ─────────────────────────────────────────────────────────────────────────────
 const SKIP_PATTERNS = [
   /^-+$/, /^\.*$/, /^_+$/, /^\s*$/, /^x+$/i, /^\.{1,3}$/,
   /^[0-9]+$/, /^[^a-zA-Z]+$/,
+  /^no$/i, /^nil$/i, /^na$/i, /^n\/a$/i, /^none$/i, /^nothing$/i,
+  /^no comments?$/i, /^no suggestions?$/i, /^all good$/i,
+  /^ok$/i, /^okay$/i, /^please$/i, /^kuch nahi$/i, /^nothing to say$/i,
+  /^[,\s.]+$/, /^,{1,3}[a-z]{0,4}$/i
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -307,14 +337,14 @@ async function analyzeCommentsWithAI(rawComments) {
       const text = part.trim();
       const decision = ruleBasedClassify(text);
       
-      if (decision === 'positive' || decision === 'neutral') {
+      if (decision === 'positive') {
         result.appreciation.push(text);
       } else if (decision === 'negative') {
         addAttention(text);
       } else if (decision === 'ai') {
         toClassifyWithAI.push({ idx, comment: text });
       }
-      // 'skip' → discard
+      // 'skip' / 'neutral' without sentiment → discard
     });
   });
 
@@ -331,23 +361,21 @@ async function analyzeCommentsWithAI(rawComments) {
             const res = await classifier(comment, { truncation: true });
             const label = res[0].label;
             const score = res[0].score;
+            const lower = comment.toLowerCase();
 
-            // Only trust AI if confidence is high (>75%)
-            // Low confidence → default to positive (benefit of the doubt)
-            if (label === 'POSITIVE' || score < 0.75) {
+            // Explicit check for negations and negative patterns
+            const hasNegativeTrait = NEGATIVE_PATTERNS.some(p => p.test(lower)) ||
+              /\b(not|never|hardly|don't|doesn't|didn't|can't|cannot)\b/i.test(lower);
+
+            if (hasNegativeTrait || label === 'NEGATIVE') {
+              addAttention(comment);
+            } else if (label === 'POSITIVE' || score > 0.6) {
               result.appreciation.push(comment);
             } else {
-              // Double-check: if the comment contains any positive keyword, override to positive
-              const lower = comment.toLowerCase();
-              const hasPositiveWord = POSITIVE_PATTERNS.some(p => p.test(lower));
-              if (hasPositiveWord) {
-                result.appreciation.push(comment);
-              } else {
-                addAttention(comment);
-              }
+              // Default to appreciation
+              result.appreciation.push(comment);
             }
           } catch {
-            // On error, default to positive
             result.appreciation.push(comment);
           }
         }));

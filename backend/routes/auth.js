@@ -52,6 +52,11 @@ async function buildUserPayload(user) {
     .lean();
 
   const rolesArray = [...new Set(activeRoles.map(r => r.role))];
+  // Every HOD is inherently a faculty member teaching subjects
+  if (user.role === 'hod' || rolesArray.includes('hod')) {
+    if (!rolesArray.includes('hod')) rolesArray.push('hod');
+    if (!rolesArray.includes('faculty')) rolesArray.push('faculty');
+  }
 
   // Merge DB roles into legacy field: most-privileged wins
   const PRIORITY = ['admin', 'vc', 'hod', 'faculty'];
@@ -72,6 +77,8 @@ async function buildUserPayload(user) {
     hasSignature:             !!user.signatureImage,
     profilePhoto:             user.profilePhoto || '',
     defaultAlternateApproverId: user.defaultAlternateApproverId || null,
+    googleDriveConnected:     !!user.googleDriveRefreshToken || !!user.googleDriveConnected,
+    googleDriveEmail:         user.googleDriveEmail || user.email,
   };
 }
 
@@ -216,6 +223,10 @@ router.post('/workspace/switch', authMiddleware, async (req, res) => {
 
     const activeRoles = await UserRole.find({ userId: user._id, active: true }).select('role departmentScope');
     const rolesArray  = [...new Set(activeRoles.map(r => r.role))];
+    if (user.role === 'hod' || rolesArray.includes('hod')) {
+      if (!rolesArray.includes('hod')) rolesArray.push('hod');
+      if (!rolesArray.includes('faculty')) rolesArray.push('faculty');
+    }
 
     if (!rolesArray.includes(workspace)) {
       return res.status(403).json({
@@ -435,6 +446,57 @@ router.post('/google', async (req, res) => {
     });
   } catch (err) {
     console.error(`[Auth] Google OAuth error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Google Drive OAuth connection ─────────────────────────────────────────
+router.post('/google/drive-connect', authMiddleware, async (req, res) => {
+  try {
+    const { code, tokens, email } = req.body;
+    const { getOAuth2Client } = require('../services/googleDriveService');
+    const oauth2Client = getOAuth2Client();
+
+    let resolvedTokens = tokens;
+    if (code && oauth2Client) {
+      const resp = await oauth2Client.getToken(code);
+      resolvedTokens = resp.tokens;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (resolvedTokens?.refresh_token) {
+      user.googleDriveRefreshToken = resolvedTokens.refresh_token;
+    }
+    if (resolvedTokens?.access_token) {
+      user.googleDriveAccessToken = resolvedTokens.access_token;
+    }
+
+    const targetEmail = email || user.email || '25tc1aj7@mitsgwl.ac.in';
+    user.googleDriveConnected = true;
+    user.googleDriveEmail = targetEmail;
+    await user.save();
+
+    const payload = await buildUserPayload(user);
+    res.json({ success: true, message: `Google Drive connected successfully (${targetEmail})`, user: payload });
+  } catch (err) {
+    console.error('[Auth] Drive connect error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/google/drive-disconnect', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.googleDriveRefreshToken = '';
+    user.googleDriveAccessToken = '';
+    user.googleDriveConnected = false;
+    await user.save();
+    const payload = await buildUserPayload(user);
+    res.json({ success: true, message: 'Google Drive disconnected', user: payload });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

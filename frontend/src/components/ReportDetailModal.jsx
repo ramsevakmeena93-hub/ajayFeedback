@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown } from "lucide-react";const STATUS_CFG = {
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown } from "lucide-react";
+
+const STATUS_CFG = {
   processed:        { color:"bg-emerald-100 text-emerald-700 border-emerald-200", icon:CheckCircle2, label:"Processed" },
   pending:          { color:"bg-slate-100 text-slate-600 border-slate-200",       icon:Clock,        label:"Pending" },
   error:            { color:"bg-red-100 text-red-700 border-red-200",             icon:AlertCircle,  label:"Error" },
@@ -14,6 +17,19 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
   const [approvalReason, setApprovalReason] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose && onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   const isEligibleForHODApprove = report.status === "sent_to_faculty" && report.sentToFacultyAt && (new Date() - new Date(report.sentToFacultyAt) >= 24 * 60 * 60 * 1000);
 
   const st = STATUS_CFG[report.status] || STATUS_CFG.pending;
@@ -27,8 +43,8 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
   const attComments = report.commentsNeedingAttention || [];
   const appComments = report.appreciation || [];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+  const modalJSX = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-scale-in">
 
@@ -113,8 +129,8 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
                 </div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">PDF</p>
               </div>
-              {report.driveLink ? (
-                <a href={report.driveLink} target="_blank" rel="noopener noreferrer"
+              {(report._id || report.driveLink) ? (
+                <a href={report._id ? `/api/reports/${report._id}/pdf` : report.driveLink} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors">
                   <ExternalLink size={13}/> View Feedback PDF
                 </a>
@@ -306,4 +322,6 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalJSX, document.body) : modalJSX;
 }

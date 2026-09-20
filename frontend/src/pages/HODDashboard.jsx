@@ -5,8 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import FeedbackTable from "../components/FeedbackTable";
 import StatsBar from "../components/StatsBar";
-import PDFUploadModal from "../components/PDFUploadModal";
-import CSVReviewModal from "../components/CSVReviewModal";
+import BatchPDFUploadModal from "../components/BatchPDFUploadModal";
 import Footer from "../components/Footer";
 import WorkspaceSwitcher from "../components/WorkspaceSwitcher";
 import { Upload, Send, Trash2, RefreshCw, Wrench, Users, Plus, Download, FileText, X, ChevronRight, PenLine, Clock, CheckCircle, AlertTriangle, ShieldAlert } from "lucide-react";
@@ -20,14 +19,13 @@ const YEARS = Array.from({ length: 11 }, (_, i) => {
 
 export default function HODDashboard() {
   const { token, user, logout, updateUser, isMultiRole, activeWorkspace } = useAuth();
-  const csvRef = useRef();
   const sigRef = useRef();
 
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState([]);
   const [submissions, setSubmissions] = useState([]);
-  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
   const [okReviewed, setOkReviewed] = useState(new Set());
   const [vcUser, setVcUser] = useState(null);
   
@@ -41,23 +39,6 @@ export default function HODDashboard() {
     localStorage.setItem('dismissedNotifs', JSON.stringify(updated));
   }
 
-  // CSV session info modal
-  const [showSessionModal, setShowSessionModal] = useState(false);
-  const [pendingFile, setPendingFile] = useState(null);
-  const [sessionInfo, setSessionInfo] = useState({
-    department: "",
-    academicYear: YEARS[Math.max(0, CURRENT_YEAR - 2020)],
-    session: "jul-dec",
-    feedbackFormNo: "I"
-  });
-
-  // CSV review
-  const [csvLinks, setCsvLinks] = useState([]);
-  const [csvCurrentIdx, setCsvCurrentIdx] = useState(0);
-  const [csvProcessing, setCsvProcessing] = useState(false);
-  const [csvCurrentData, setCsvCurrentData] = useState(null);
-  const [showCsvReview, setShowCsvReview] = useState(false);
-  const [preloadCache, setPreloadCache] = useState({});
   const [currentSession, setCurrentSession] = useState(null);
   const [sessionStartTime, setSessionStartTime] = useState(null);
 
@@ -100,101 +81,7 @@ export default function HODDashboard() {
       .filter(Boolean)
   );
 
-  // Step 1: intercept CSV file, show session modal first
-  function handleCSVFileSelect(e) {
-    const file = e.target.files[0]; if (!file) return;
-    setPendingFile(file);
-    setSessionInfo({
-      department: user?.department || "",
-      academicYear: YEARS[Math.max(0, CURRENT_YEAR - 2020)],
-      session: "jul-dec",
-      feedbackFormNo: "I"
-    });
-    setShowSessionModal(true);
-    e.target.value = "";
-  }
 
-  // Step 2: after session info confirmed, upload CSV
-  async function handleSessionConfirm() {
-    if (!sessionInfo.department.trim()) return toast.error("Please enter department name");
-    if (!sessionInfo.academicYear) return toast.error("Please select academic year");
-    setShowSessionModal(false);
-    setCurrentSession({ ...sessionInfo });
-    setSessionStartTime(Date.now() - 1000); // 1 second buffer
-    const fd = new FormData(); fd.append("csv", pendingFile);
-    try {
-      const { data } = await api.post("/api/process/upload-csv", fd);
-      toast.success(`Found ${data.total} PDF links`);
-      setCsvLinks(data.links); setCsvCurrentIdx(0); setCsvCurrentData(null);
-      setShowCsvReview(true); loadPDF(data.links, 0);
-    } catch (err) {
-      if (err.response?.status === 401) { toast.error("Session expired"); logout(); return; }
-      toast.error(err.response?.data?.error || "CSV upload failed");
-    }
-  }
-
-  async function loadPDF(links, idx) {
-    if (idx >= links.length) return;
-    if (preloadCache[idx]) {
-      setCsvCurrentData(preloadCache[idx]);
-      setCsvProcessing(false);
-      preloadBatch(links, idx + 1);
-      return;
-    }
-    setCsvProcessing(true); setCsvCurrentData(null);
-    try {
-      const entry = links[idx];
-      const payload = { pdfLink: entry.pdfLink, responseCount: entry.responseCount, sno: idx + 1 };
-      const { data } = await api.post("/api/process/process-one", payload);
-      if (currentSession) {
-        await api.patch(`/api/reports/${data.report._id}/edit`, {
-          academicYear: currentSession.academicYear,
-        }).catch(() => { });
-      }
-      setCsvCurrentData(data.report);
-      setReports(prev => {
-        const other = prev.filter(r => r._id !== data.report._id);
-        return [...other, data.report];
-      });
-      preloadBatch(links, idx + 1);
-    } catch (err) {
-      if (err.response?.status === 401) { toast.error("Session expired"); logout(); return; }
-      toast.error(`Failed to load PDF ${idx + 1}`); setCsvCurrentData({ error: true, sno: idx + 1 });
-    } finally { setCsvProcessing(false); }
-  }
-
-  async function preloadBatch(links, startIdx) {
-    const limit = 3;
-    for (let i = 0; i < limit; i++) {
-      const targetIdx = startIdx + i;
-      if (targetIdx >= links.length || preloadCache[targetIdx]) continue;
-      const entry = links[targetIdx];
-      api.post("/api/process/process-one", {
-        pdfLink: entry.pdfLink,
-        responseCount: entry.responseCount,
-        sno: targetIdx + 1
-      }).then(async ({ data }) => {
-        if (currentSession) {
-          api.patch(`/api/reports/${data.report._id}/edit`, {
-            academicYear: currentSession.academicYear,
-          }).catch(() => { });
-        }
-        setPreloadCache(prev => ({ ...prev, [targetIdx]: data.report }));
-        setReports(prev => {
-          const other = prev.filter(r => r._id !== data.report._id);
-          return [...other, data.report];
-        });
-      }).catch(() => { });
-    }
-  }
-
-  function handleCsvOk() {
-    const next = csvCurrentIdx + 1;
-    if (next >= csvLinks.length) {
-      setShowCsvReview(false); toast.success(`All ${csvLinks.length} reports reviewed!`);
-      setSelected(reports.filter(r => r.status === "processed").map(r => r._id)); fetchReports();
-    } else { setCsvCurrentIdx(next); loadPDF(csvLinks, next); }
-  }
 
   async function handleSendToVC() {
     if (selected.length === 0) return toast.error("Select at least one report");
@@ -517,12 +404,8 @@ export default function HODDashboard() {
               {/* ── Toolbar ── */}
               <div className="card px-5 py-3.5 flex flex-wrap gap-2 items-center justify-between animate-fade-in mt-4">
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setShowPDFModal(true)} className="btn btn-primary btn-sm">
-                    <Plus size={14} /> Upload PDFs
-                  </button>
-                  <input ref={csvRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFileSelect} />
-                  <button onClick={() => csvRef.current.click()} className="btn btn-secondary btn-sm">
-                    <Upload size={14} /> Upload CSV
+                  <button onClick={() => setShowBatchModal(true)} className="btn btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
+                    <Plus size={15} /> Upload Feedback Reports
                   </button>
                   {reports.length > 0 && <>
                     <button onClick={fixMetadata} className="btn btn-secondary btn-sm text-indigo-600">
@@ -574,62 +457,6 @@ export default function HODDashboard() {
 
       <Footer />
 
-      {/* CSV Session Info Modal */}
-      {showSessionModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-7 space-y-5 animate-scale-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800">Session Details</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Enter details before processing the CSV</p>
-              </div>
-              <button onClick={() => setShowSessionModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Department Name</label>
-                <input type="text" className="input" placeholder="e.g. Computer Science & Technology"
-                  value={sessionInfo.department}
-                  onChange={e => setSessionInfo(s => ({ ...s, department: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Academic Year</label>
-                <select className="input" value={sessionInfo.academicYear}
-                  onChange={e => setSessionInfo(s => ({ ...s, academicYear: e.target.value }))}>
-                  {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Session</label>
-                <select className="input" value={sessionInfo.session}
-                  onChange={e => setSessionInfo(s => ({ ...s, session: e.target.value }))}>
-                  <option value="jul-dec">July – December (Odd Semester)</option>
-                  <option value="jan-may">January – June (Even Semester)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Feedback Form No.</label>
-                <select className="input" value={sessionInfo.feedbackFormNo}
-                  onChange={e => setSessionInfo(s => ({ ...s, feedbackFormNo: e.target.value }))}>
-                  <option value="I">Feedback Form – I</option>
-                  <option value="II">Feedback Form – II</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-1">
-              <button onClick={() => setShowSessionModal(false)} className="btn btn-secondary flex-1">Cancel</button>
-              <button onClick={handleSessionConfirm} className="btn btn-primary flex-1">
-                Continue <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Signature Modal */}
       {showSigModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -673,14 +500,17 @@ export default function HODDashboard() {
         </div>
       )}
 
-      {showPDFModal && (
-        <PDFUploadModal token={token} onClose={() => setShowPDFModal(false)}
-          onUploaded={() => { setShowPDFModal(false); fetchReports(); }} />
-      )}
-      {showCsvReview && (
-        <CSVReviewModal currentData={csvCurrentData} currentIdx={csvCurrentIdx}
-          total={csvLinks.length} processing={csvProcessing}
-          onOk={handleCsvOk} onClose={() => { setShowCsvReview(false); fetchReports(); }} />
+      {/* Modern Automated Batch PDF Upload Modal */}
+      {showBatchModal && (
+        <BatchPDFUploadModal
+          user={user}
+          token={token}
+          onClose={() => setShowBatchModal(false)}
+          onSuccess={() => {
+            setShowBatchModal(false);
+            fetchReports();
+          }}
+        />
       )}
     </div>
   );

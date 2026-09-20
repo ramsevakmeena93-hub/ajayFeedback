@@ -77,8 +77,8 @@ export default function SequentialReview({ reports, onClose, onAllReviewed }) {
                 </div>
               )}
             </div>
-            {current.driveLink && (
-              <a href={current.driveLink} target="_blank" rel="noopener noreferrer"
+            {current._id && (
+              <a href={`/api/reports/${current._id}/pdf`} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-2">
                 <ExternalLink size={12} /> View Full PDF
               </a>

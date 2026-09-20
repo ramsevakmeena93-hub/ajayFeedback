@@ -27,6 +27,10 @@ async function buildUserPayload(user) {
     .select('role departmentScope')
     .lean();
   const rolesArray = [...new Set(activeRoles.map(r => r.role))];
+  if (user.role === 'hod' || rolesArray.includes('hod')) {
+    if (!rolesArray.includes('hod')) rolesArray.push('hod');
+    if (!rolesArray.includes('faculty')) rolesArray.push('faculty');
+  }
   const PRIORITY   = ['admin', 'vc', 'hod', 'faculty'];
   const primaryRole = PRIORITY.find(r => rolesArray.includes(r)) || user.role || 'faculty';
   const activeWorkspace = user.activeWorkspace || primaryRole;
@@ -127,6 +131,10 @@ router.post('/switch', authMiddleware, async (req, res) => {
 
     const activeRoles = await UserRole.find({ userId: user._id, active: true }).select('role departmentScope');
     const rolesArray  = [...new Set(activeRoles.map(r => r.role))];
+    if (user.role === 'hod' || rolesArray.includes('hod')) {
+      if (!rolesArray.includes('hod')) rolesArray.push('hod');
+      if (!rolesArray.includes('faculty')) rolesArray.push('faculty');
+    }
 
     if (!rolesArray.includes(workspace)) {
       return res.status(403).json({

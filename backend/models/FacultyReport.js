@@ -11,6 +11,7 @@ const facultyReportSchema = new mongoose.Schema({
   semester: { type: String, default: '' },
   pdfLink: { type: String, default: '' },
   driveLink: { type: String, default: '' },
+  pdfFilePath: { type: String, default: '' }, // absolute path to original uploaded file on server
 
   // ── Extended location fields (separate from roles) ──────────────────
   /** Branch — e.g. "CSE", "IT", "EC". Complements programme (which holds the full degree name). */

@@ -647,4 +647,238 @@ async function generateFeedbackReportPDF({ submission, reports, hodUser, vcUser,
   return Buffer.from(await pdfDoc.save());
 }
 
-module.exports = { generateFeedbackReportPDF };
+// ─────────────────────────────────────────────────────────────────────────────
+// GENERATE INDIVIDUAL FACULTY FEEDBACK REPORT PDF
+// ─────────────────────────────────────────────────────────────────────────────
+async function generateIndividualFacultyPDF(report) {
+  const pdfDoc = await PDFDocument.create();
+  const font          = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont      = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const timesFont     = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const timesBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+
+  const black     = rgb(0.1, 0.1, 0.1);
+  const white     = rgb(1, 1, 1);
+  const gray      = rgb(0.45, 0.45, 0.45);
+  const lightGray = rgb(0.95, 0.96, 0.98);
+  const borderCol = rgb(0.82, 0.85, 0.9);
+  const navy      = rgb(0.08, 0.18, 0.38);
+  const green     = rgb(0.08, 0.52, 0.28);
+  const greenBg   = rgb(0.93, 0.98, 0.94);
+  const greenBdr  = rgb(0.68, 0.88, 0.72);
+  const amber     = rgb(0.72, 0.42, 0.05);
+  const amberBg   = rgb(0.99, 0.97, 0.91);
+  const amberBdr  = rgb(0.95, 0.82, 0.58);
+
+  const PW = 595.28; // A4 Portrait
+  const PH = 841.89;
+  const ML = 36;
+  const MR = 36;
+  const CW = PW - ML - MR; // ~523 pt
+
+  let page = pdfDoc.addPage([PW, PH]);
+  let curY = PH - 30;
+
+  function wrapText(text, maxChars) {
+    const words = (text || "").split(" ");
+    const lines = [];
+    let cur = "";
+    words.forEach(w => {
+      const next = cur ? cur + " " + w : w;
+      if (next.length <= maxChars) {
+        cur = next;
+      } else {
+        if (cur) lines.push(cur);
+        cur = w.length > maxChars ? w.substring(0, maxChars - 1) + "…" : w;
+      }
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function checkPageSpace(requiredSpace) {
+    if (curY - requiredSpace < 40) {
+      page = pdfDoc.addPage([PW, PH]);
+      curY = PH - 40;
+      return true;
+    }
+    return false;
+  }
+
+  // 1. Header Banner Image or Typography Header
+  let headerDrawn = false;
+  if (_headerBytes) {
+    try {
+      const headerImg = await pdfDoc.embedPng(_headerBytes);
+      const imgH = 54;
+      const imgW = CW;
+      page.drawImage(headerImg, { x: ML, y: curY - imgH, width: imgW, height: imgH });
+      curY -= (imgH + 12);
+      headerDrawn = true;
+    } catch (_) {}
+  }
+
+  if (!headerDrawn) {
+    page.drawRectangle({ x: ML, y: curY - 50, width: CW, height: 50, color: navy });
+    page.drawText("MADHAV INSTITUTE OF TECHNOLOGY & SCIENCE, GWALIOR", {
+      x: ML + 20, y: curY - 22, size: 12, font: boldFont, color: white
+    });
+    page.drawText("A Grant-in-Aid Autonomous Institute Under Govt. of M.P.", {
+      x: ML + 20, y: curY - 38, size: 9, font, color: white
+    });
+    curY -= 62;
+  }
+
+  // Document Title Bar
+  page.drawRectangle({ x: ML, y: curY - 24, width: CW, height: 24, color: lightGray, borderColor: borderCol, borderWidth: 1 });
+  page.drawText("FACULTY STUDENT FEEDBACK & AI ANALYSIS REPORT", {
+    x: ML + 12, y: curY - 16, size: 10, font: boldFont, color: navy
+  });
+  const dateStr = new Date(report.analyzedAt || report.createdAt || Date.now()).toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric"
+  });
+  page.drawText(`Date: ${dateStr}`, {
+    x: PW - MR - 100, y: curY - 16, size: 9, font, color: gray
+  });
+  curY -= 32;
+
+  // 2. Faculty & Course Details Card + FFI Score Badge
+  const infoH = 88;
+  page.drawRectangle({ x: ML, y: curY - infoH, width: CW, height: infoH, color: white, borderColor: borderCol, borderWidth: 1 });
+
+  // Left Column - Details
+  const leftX = ML + 14;
+  let lineY = curY - 18;
+  page.drawText("Faculty Name:", { x: leftX, y: lineY, size: 9, font: boldFont, color: gray });
+  page.drawText(report.facultyName || "—", { x: leftX + 85, y: lineY, size: 11, font: boldFont, color: black });
+
+  lineY -= 18;
+  page.drawText("Course / Code:", { x: leftX, y: lineY, size: 9, font: boldFont, color: gray });
+  page.drawText(report.subjectCode || "—", { x: leftX + 85, y: lineY, size: 10, font: boldFont, color: navy });
+
+  lineY -= 18;
+  page.drawText("Programme / Sem:", { x: leftX, y: lineY, size: 9, font: boldFont, color: gray });
+  const progSem = [report.programme, report.semester ? `Semester ${report.semester}` : "", report.branch ? `(${report.branch})` : ""].filter(Boolean).join(" · ") || "—";
+  page.drawText(progSem, { x: leftX + 85, y: lineY, size: 9, font, color: black });
+
+  lineY -= 18;
+  page.drawText("Academic Year:", { x: leftX, y: lineY, size: 9, font: boldFont, color: gray });
+  const responsesText = report.responseCount != null ? ` · Total Responses: ${report.responseCount}` : "";
+  page.drawText((report.academicYear || "2025-2026") + responsesText, { x: leftX + 85, y: lineY, size: 9, font, color: black });
+
+  // Right Column - FFI Score Box
+  const badgeW = 120;
+  const badgeH = 68;
+  const badgeX = PW - MR - badgeW - 10;
+  const badgeY = curY - infoH + 10;
+  const ffi = report.ffiScore != null ? Number(report.ffiScore) : null;
+  const isHighFFI = ffi != null && ffi >= 3.5;
+  const scoreBg = isHighFFI ? greenBg : amberBg;
+  const scoreBdr = isHighFFI ? greenBdr : amberBdr;
+  const scoreCol = isHighFFI ? green : amber;
+
+  page.drawRectangle({ x: badgeX, y: badgeY, width: badgeW, height: badgeH, color: scoreBg, borderColor: scoreBdr, borderWidth: 1 });
+  page.drawText("FFI SCORE", { x: badgeX + 28, y: badgeY + badgeH - 14, size: 8, font: boldFont, color: scoreCol });
+  page.drawText(ffi != null ? ffi.toFixed(2) : "—", { x: badgeX + 24, y: badgeY + badgeH - 42, size: 24, font: boldFont, color: scoreCol });
+  page.drawText("Scale: 1.00 - 5.00", { x: badgeX + 22, y: badgeY + 10, size: 7.5, font, color: gray });
+
+  curY -= (infoH + 16);
+
+  // Helper to draw a comments section
+  function drawSection(title, items, isAppreciation) {
+    const list = Array.isArray(items) && items.length > 0 ? items : [];
+    checkPageSpace(60);
+
+    // Section Header
+    const secBg = isAppreciation ? greenBg : amberBg;
+    const secBdr = isAppreciation ? greenBdr : amberBdr;
+    const secTxt = isAppreciation ? green : amber;
+    const countTxt = `(${list.length} comments identified)`;
+
+    page.drawRectangle({ x: ML, y: curY - 22, width: CW, height: 22, color: secBg, borderColor: secBdr, borderWidth: 1 });
+    page.drawText(title, { x: ML + 10, y: curY - 15, size: 9.5, font: boldFont, color: secTxt });
+    page.drawText(countTxt, { x: ML + 240, y: curY - 15, size: 8.5, font, color: gray });
+    curY -= 28;
+
+    if (list.length === 0) {
+      page.drawText(isAppreciation ? "No specific student appreciation comments recorded." : "No critical student feedback comments needing attention.", {
+        x: ML + 14, y: curY - 10, size: 8.5, font, color: gray
+      });
+      curY -= 22;
+      return;
+    }
+
+    // List items with bullet points
+    list.forEach((comment, idx) => {
+      const wrapped = wrapText(comment, 95);
+      const itemH = (wrapped.length * 13) + 6;
+      checkPageSpace(itemH + 10);
+
+      // Bullet dot
+      page.drawCircle({ x: ML + 12, y: curY - 6, size: 2.2, color: secTxt });
+
+      wrapped.forEach((lineText, li) => {
+        page.drawText(lineText, {
+          x: ML + 22, y: curY - 9 - (li * 13), size: 8.5, font, color: black
+        });
+      });
+
+      curY -= itemH;
+    });
+
+    curY -= 8;
+  }
+
+  // 3. Positive Feedback (Appreciation)
+  drawSection("STUDENT APPRECIATION & POSITIVE FEEDBACK", report.appreciation || report.goodComments, true);
+
+  // 4. Feedback Needing Attention
+  drawSection("AREAS FOR IMPROVEMENT / FEEDBACK NEEDING ATTENTION", report.commentsNeedingAttention || report.badComments, false);
+
+  // 5. HOD Remarks & Action Taken (if any)
+  if (report.hodRemarks || report.actionTaken) {
+    checkPageSpace(60);
+    page.drawRectangle({ x: ML, y: curY - 20, width: CW, height: 20, color: lightGray, borderColor: borderCol, borderWidth: 1 });
+    page.drawText("HOD REMARKS & ACTION TAKEN", { x: ML + 10, y: curY - 14, size: 9, font: boldFont, color: navy });
+    curY -= 26;
+
+    const remarksText = [report.actionTaken ? `Action Taken: ${report.actionTaken}` : "", report.hodRemarks ? `Remarks: ${report.hodRemarks}` : ""].filter(Boolean).join("\n");
+    const wrappedRemarks = wrapText(remarksText, 95);
+    wrappedRemarks.forEach(lineText => {
+      checkPageSpace(15);
+      page.drawText(lineText, { x: ML + 14, y: curY - 9, size: 8.5, font, color: black });
+      curY -= 13;
+    });
+    curY -= 10;
+  }
+
+  // 6. Signatures & Verification Stamp Footer
+  checkPageSpace(70);
+  const footerY = curY - 50;
+  page.drawLine({ start: { x: ML, y: curY - 8 }, end: { x: PW - MR, y: curY - 8 }, thickness: 0.5, color: borderCol });
+
+  // Faculty Signature / Acknowledgment Box
+  page.drawText("Faculty Acknowledgment:", { x: ML + 10, y: footerY + 30, size: 8, font: boldFont, color: gray });
+  if (report.facultyAcknowledged) {
+    const ackDate = report.facultyAcknowledgedAt ? new Date(report.facultyAcknowledgedAt).toLocaleDateString("en-IN") : "Verified";
+    page.drawText(`[Digitally Acknowledged - ${ackDate}]`, { x: ML + 10, y: footerY + 16, size: 8.5, font: boldFont, color: green });
+  } else {
+    page.drawText("[Pending Review]", { x: ML + 10, y: footerY + 16, size: 8.5, font, color: gray });
+  }
+
+  // HOD Signature Box
+  page.drawText("Head of Department (HOD):", { x: PW - MR - 160, y: footerY + 30, size: 8, font: boldFont, color: gray });
+  page.drawText("Verified & Submitted", { x: PW - MR - 160, y: footerY + 16, size: 8.5, font: boldFont, color: navy });
+
+  // Page Numbers
+  const totalPages = pdfDoc.getPageCount();
+  for (let pi = 0; pi < totalPages; pi++) {
+    pdfDoc.getPage(pi).drawText(`Page ${pi + 1} of ${totalPages} · Confidential MITS Feedback System`, {
+      x: PW / 2 - 100, y: 15, size: 7.5, font, color: gray
+    });
+  }
+
+  return Buffer.from(await pdfDoc.save());
+}
+
+module.exports = { generateFeedbackReportPDF, generateIndividualFacultyPDF };
