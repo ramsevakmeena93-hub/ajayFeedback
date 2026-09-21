@@ -27,8 +27,8 @@ const STEPS = [
   {
     icon: GraduationCap,
     color: "bg-amber-600",
-    title: "VC Approves",
-    desc: "The Vice Chancellor reviews all HOD submissions, approves or rejects with comments, triggering the final report generation.",
+    title: "Pro Vice-Chancellor Approves",
+    desc: "The Pro Vice-Chancellor reviews all HOD submissions, approves or rejects with comments, triggering the final report generation.",
     step: "04"
   },
   {

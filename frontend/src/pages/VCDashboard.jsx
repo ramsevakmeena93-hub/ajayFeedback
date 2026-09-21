@@ -138,8 +138,8 @@ const [pendingApproveId, setPendingApproveId] = useState(null);
         <div className="rounded-2xl overflow-hidden shadow-md" style={{background:"linear-gradient(120deg,#1e3a5f 0%,#1e4d8c 60%,#1a3a6e 100%)"}}>
           <div className="px-8 py-7 flex items-center justify-between flex-wrap gap-4">
             <div>
-              <p className="text-blue-200 text-sm font-medium">Vice Chancellor Portal</p>
-              <h1 className="text-white text-2xl font-bold mt-0.5">Welcome, {user?.name || "Vice Chancellor"}</h1>
+              <p className="text-blue-200 text-sm font-medium">Pro Vice-Chancellor Portal</p>
+              <h1 className="text-white text-2xl font-bold mt-0.5">Welcome, {user?.name || "Pro Vice-Chancellor"}</h1>
               <p className="text-blue-300 text-xs mt-1">MITS Gwalior · Madhav Institute of Technology & Science · 2025–26</p>
             </div>
             <div className="flex gap-3">

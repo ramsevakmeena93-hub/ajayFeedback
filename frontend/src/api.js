@@ -1,9 +1,27 @@
 import axios from 'axios';
 
-// Base URL — empty in dev (Vite proxy handles /api → localhost:5000)
+// Base URL — in prod Railway, in dev localhost:5000
 const isProd = import.meta.env.PROD;
+export const API_BASE = import.meta.env.VITE_API_URL
+  || (isProd ? 'https://feedbackbackend-production-db19.up.railway.app' : 'http://localhost:5000');
+
 const baseURL = import.meta.env.VITE_API_URL
   || (isProd ? 'https://feedbackbackend-production-db19.up.railway.app' : '');
+
+export function getPdfUrl(report) {
+  if (!report) return '#';
+  const link = report.driveLink || report.pdfLink || '';
+  if (link.startsWith('https://drive.google.com') || link.startsWith('https://storage.googleapis.com')) {
+    return link;
+  }
+  if (report._id) {
+    return `${API_BASE}/api/reports/${report._id}/pdf`;
+  }
+  if (link.startsWith('http://') || link.startsWith('https://')) {
+    return link;
+  }
+  return link ? `${API_BASE}${link.startsWith('/') ? '' : '/'}${link}` : '#';
+}
 
 // ── Set global default so ALL axios calls (even raw `import axios from 'axios'`)
 // use the correct backend URL in production. Without this, components like

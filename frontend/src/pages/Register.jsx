@@ -12,7 +12,7 @@ import mitsLogo from "../assets/mits-logo.png";
 const ROLES = [
   { value: "faculty",  label: "Faculty Member",     icon: "👨‍🏫", desc: "Submit & track feedback forms"    },
   { value: "hod",      label: "Head of Department",  icon: "🏛️",  desc: "Review and approve HOD reports"  },
-  { value: "vc",       label: "Vice Chancellor",     icon: "🎓",  desc: "View final VC-level reports"     },
+  { value: "vc",       label: "Pro Vice-Chancellor",     icon: "🎓",  desc: "View final VC-level reports"     },
   { value: "admin",    label: "Administrator",       icon: "🛡️",  desc: "Manage users and system config"  },
 ];
 
@@ -54,6 +54,11 @@ export default function Register() {
     }
     if (form.password.length < 6) {
       toast.error("Password must be at least 6 characters");
+      return;
+    }
+    const cleanEmail = form.email.toLowerCase().trim();
+    if (!cleanEmail.endsWith("@mitsgwalior.in")) {
+      toast.error("Only @mitsgwalior.in institutional emails are allowed");
       return;
     }
     setLoading(true);
@@ -198,13 +203,14 @@ export default function Register() {
                     id="reg-email"
                     type="email"
                     autoComplete="email"
-                    placeholder="your@email.com"
+                    placeholder="name@mitsgwalior.in"
                     value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     required
                     className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 mt-1">Allowed domain: <span className="text-violet-400 font-medium">@mitsgwalior.in</span></p>
               </div>
 
               {/* Password */}

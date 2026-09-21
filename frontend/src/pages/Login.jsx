@@ -5,39 +5,82 @@ import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import {
   GraduationCap,
+  Users,
   CheckCircle,
   ArrowLeft,
-  Shield,
-  Users,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  LogIn,
-  Sparkles
+  Shield
 } from "lucide-react";
 import mitsLogo from "../assets/mits-logo.png";
-
-const DEMO_ACCOUNTS = [
-  { role: "HOD", email: "hod@mits.ac.in", pass: "hod123", icon: "🏛️" },
-  { role: "Faculty", email: "faculty@mits.ac.in", pass: "faculty123", icon: "👨‍🏫" },
-  { role: "VC", email: "vc@mits.ac.in", pass: "vc123", icon: "🎓" },
-  { role: "Admin", email: "admin@mits.ac.in", pass: "admin123", icon: "🛡️" },
-];
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Already logged in → redirect to dashboard
   useEffect(() => {
     if (user) go(user.activeWorkspace || user.role);
   }, [user]);
+
+  // Google Identity Services Sign-In
+  useEffect(() => {
+    const clientId =
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      "32902780570-ltgii8ds5cf6pp8elj3uapsao7a78u88.apps.googleusercontent.com";
+
+    function initializeGoogle() {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleSuccess,
+          auto_select: false,
+        });
+
+        const btnContainer = document.getElementById("google-login-btn");
+        if (btnContainer) {
+          btnContainer.innerHTML = "";
+          window.google.accounts.id.renderButton(btnContainer, {
+            theme: "outline",
+            size: "large",
+            type: "standard",
+            text: "signin_with",
+            shape: "rectangular",
+            logo_alignment: "left",
+            width: 320,
+          });
+        }
+        return true;
+      }
+      return false;
+    }
+
+    if (!initializeGoogle()) {
+      const interval = setInterval(() => {
+        if (initializeGoogle()) clearInterval(interval);
+      }, 300);
+      return () => clearInterval(interval);
+    }
+  }, []);
+
+  async function handleGoogleSuccess(response) {
+    if (!response?.credential) return;
+    setLoading(true);
+    try {
+      const { data } = await axios.post("/api/auth/google", {
+        credential: response.credential,
+      });
+      login(data.user, data.token);
+      toast.success(`Welcome back, ${data.user.name || "User"}! 🎉`);
+      go(data.user.activeWorkspace || data.user.role);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error ||
+          "Google Sign-In failed. Please use your @mitsgwalior.in institutional account."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function go(role) {
     const dest =
@@ -49,35 +92,6 @@ export default function Login() {
         ? "/admin"
         : "/hod";
     navigate(dest, { replace: true });
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!email || !password) {
-      return toast.error("Please enter both email and password");
-    }
-
-    setLoading(true);
-    try {
-      const { data } = await axios.post("/api/auth/login", {
-        email: email.trim(),
-        password
-      });
-
-      login(data.user, data.token);
-      toast.success(`Welcome back, ${data.user.name || "User"}! 👋`);
-      go(data.user.activeWorkspace || data.user.role);
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Invalid email or password");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function fillDemo(acc) {
-    setEmail(acc.email);
-    setPassword(acc.pass);
-    toast.success(`Auto-filled ${acc.role} credentials!`);
   }
 
   return (
@@ -180,99 +194,45 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Quick Demo Fill Buttons */}
-            <div className="mb-5 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-3">
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Sparkles size={12} className="text-blue-400" />
-                Quick Demo Login (Click to fill)
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {DEMO_ACCOUNTS.map(acc => (
-                  <button
-                    key={acc.role}
-                    type="button"
-                    onClick={() => fillDemo(acc)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/[0.05] hover:bg-blue-600/30 border border-white/[0.06] hover:border-blue-500/50 rounded-xl text-left transition text-xs text-slate-300 group"
-                  >
-                    <span>{acc.icon}</span>
-                    <span className="font-semibold group-hover:text-white">{acc.role}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Manual Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail size={16} />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="e.g. hod@mits.ac.in"
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/[0.05] border border-white/10 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                  />
+            {/* Google Sign-In Card */}
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 shadow-2xl backdrop-blur-xl">
+              <div className="text-center mb-5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-violet-300 text-xs font-medium mb-3">
+                  <Shield size={12} /> Google OAuth 2.0
                 </div>
+                <h2 className="text-white text-base font-semibold">Institute Single Sign-On</h2>
+                <p className="text-slate-400 text-xs mt-1">
+                  Sign in using your authorized MITS institutional Google account
+                </p>
               </div>
 
-              {/* Password */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                    Password
-                  </label>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Lock size={16} />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-white/[0.05] border border-white/10 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
+              {/* Google Button Container */}
+              <div className="flex justify-center w-full min-h-[44px] my-3">
+                <div id="google-login-btn" className="w-full flex justify-center" />
               </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 mt-2"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <LogIn size={16} /> Sign In
-                  </>
-                )}
-              </button>
-            </form>
+              {loading && (
+                <div className="flex items-center justify-center gap-2 mt-4 text-xs text-blue-400">
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span>Authenticating with Google...</span>
+                </div>
+              )}
 
-            <div className="mt-6 text-center text-xs text-slate-400">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-blue-400 hover:underline font-medium">
-                Register here
-              </Link>
+              {/* Allowed Domains Info Box */}
+              <div className="mt-5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[11px] text-slate-400 space-y-1.5">
+                <p className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <CheckCircle size={13} className="text-emerald-400" />
+                  Authorized Institutional Domain:
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-300 font-mono text-xs font-semibold">
+                    @mitsgwalior.in
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 pt-1">
+                  Applicable for all Faculty, HODs, Administration & Pro Vice-Chancellor.
+                </p>
+              </div>
             </div>
           </div>
         </div>

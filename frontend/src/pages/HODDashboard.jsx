@@ -113,14 +113,19 @@ export default function HODDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || "Failed"); }
   }
 
-  function handleExportCSV() {
-    fetch("/api/reports/my/export", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.blob()).then(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = "feedback-reports.csv"; a.click();
-        URL.revokeObjectURL(url);
-      });
-    toast.success("Downloading CSV...");
+  async function handleExportCSV() {
+    try {
+      toast.success("Downloading CSV...");
+      const res = await api.get("/api/reports/my/export", { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "feedback-reports.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error("Failed to export CSV");
+    }
   }
 
   // Export PDF before VC approval (HOD review)
@@ -129,16 +134,8 @@ export default function HODDashboard() {
     setExportingPDF(true);
     toast.loading("Generating preview PDF...", { id: "pdf-preview" });
     try {
-      const res = await fetch("/api/reports/my/preview-pdf", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        toast.error(e.error || "PDF generation failed", { id: "pdf-preview" });
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const res = await api.get("/api/reports/my/preview-pdf", { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
       a.download = `hod-review-report-${new Date().toISOString().split("T")[0]}.pdf`;
@@ -328,20 +325,20 @@ export default function HODDashboard() {
                 <div className="px-6 py-5 space-y-4">
                   <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
                     {isApproved && <>
-                      The Vice Chancellor has <strong className="text-emerald-600">approved</strong> your feedback
+                      The Pro Vice-Chancellor has <strong className="text-emerald-600">approved</strong> your feedback
                       submission for the <strong>{sub.department || "your department"}</strong> department,
                       Academic Year <strong>{sub.academicYear || "2026"}</strong>
                       {sub.session ? `, ${sub.session === "jan-may" ? "Jan – May" : "Jul – Dec"} session` : ""}.
                       The final PDF report is now available.
                     </>}
                     {isRejected && <>
-                      The Vice Chancellor has <strong className="text-red-600">rejected</strong> your feedback
+                      The Pro Vice-Chancellor has <strong className="text-red-600">rejected</strong> your feedback
                       submission for <strong>{sub.department || "your department"}</strong>,
                       Academic Year <strong>{sub.academicYear || "2026"}</strong>.
                       Please review the comments and resubmit.
                     </>}
                     {isSentBack && <>
-                      The Vice Chancellor has <strong className="text-amber-600">sent back</strong> your
+                      The Pro Vice-Chancellor has <strong className="text-amber-600">sent back</strong> your
                       submission for <strong>{sub.department || "your department"}</strong> for revision.
                     </>}
                   </p>

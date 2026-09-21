@@ -31,7 +31,7 @@ const DEPARTMENTS = [
 const ROLES = [
   { value: "faculty", label: "Faculty Member",    icon: GraduationCap, color: "from-emerald-500 to-teal-600",   desc: "View & acknowledge feedback reports" },
   { value: "hod",     label: "Head of Department",icon: UserCog,        color: "from-blue-500 to-indigo-600",    desc: "Process PDFs & submit to VC" },
-  { value: "vc",      label: "Vice Chancellor",   icon: Shield,         color: "from-violet-500 to-purple-600",  desc: "Approve final submissions" },
+  { value: "vc",      label: "Pro Vice-Chancellor",   icon: Shield,         color: "from-violet-500 to-purple-600",  desc: "Approve final submissions" },
   { value: "admin",   label: "Administrator",     icon: LayoutDashboard,color: "from-rose-500 to-red-600",       desc: "Manage users & system config" },
 ];
 

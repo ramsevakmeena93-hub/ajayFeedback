@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { getPdfUrl } from "../api";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
@@ -178,7 +179,7 @@ export default function SubmissionDetail() {
                         <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                           {r.facultyName||"—"}
                           {r._id && (
-                            <a href={`/api/reports/${r._id}/pdf`} target="_blank" rel="noopener noreferrer"
+                            <a href={getPdfUrl(r)} target="_blank" rel="noopener noreferrer"
                               className="flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-0.5">
                               <ExternalLink size={10}/> View PDF
                             </a>

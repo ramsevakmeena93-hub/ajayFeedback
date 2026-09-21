@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle, ChevronRight, X, ExternalLink } from 'lucide-react';
+import { getPdfUrl } from '../api';
 
 export default function SequentialReview({ reports, onClose, onAllReviewed }) {
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -78,7 +79,7 @@ export default function SequentialReview({ reports, onClose, onAllReviewed }) {
               )}
             </div>
             {current._id && (
-              <a href={`/api/reports/${current._id}/pdf`} target="_blank" rel="noopener noreferrer"
+              <a href={getPdfUrl(current)} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-2">
                 <ExternalLink size={12} /> View Full PDF
               </a>

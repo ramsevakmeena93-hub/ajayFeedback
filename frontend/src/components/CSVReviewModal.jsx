@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, ChevronRight, X, Loader } from "lucide-react";
+import { getPdfUrl } from "../api";
 
 export default function CSVReviewModal({ currentData, currentIdx, total, processing, onOk, onClose }) {
   const isLast = currentIdx === total - 1;
@@ -101,7 +102,7 @@ export default function CSVReviewModal({ currentData, currentIdx, total, process
                   )}
                 </div>
                 {currentData._id && (
-                  <a href={`/api/reports/${currentData._id}/pdf`} target="_blank" rel="noopener noreferrer"
+                  <a href={getPdfUrl(currentData)} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-2">
                     <ExternalLink size={12} /> View Full PDF
                   </a>

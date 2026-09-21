@@ -300,7 +300,7 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
               )}
             </div>
             <div className="text-center">
-              <p className="text-sm font-semibold text-slate-700">{vcUser?.name || "Vice Chancellor"}</p>
+              <p className="text-sm font-semibold text-slate-700">{vcUser?.name || "Pro Vice-Chancellor"}</p>
               <p className="text-xs text-slate-400 mt-0.5">VC</p>
             </div>
           </div>

@@ -110,7 +110,7 @@ export default function VCManagement() {
             <Crown className="text-violet-500" size={24} /> VC Management
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage Vice Chancellor accounts — add, edit or remove.
+            Manage Pro Vice-Chancellor accounts — add, edit or remove.
           </p>
         </div>
         <div className="flex gap-2">
@@ -154,7 +154,7 @@ export default function VCManagement() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 dark:text-white text-sm truncate max-w-[150px]">{vc.name}</p>
-                    <p className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold">Vice Chancellor</p>
+                    <p className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold">Pro Vice-Chancellor</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -270,7 +270,7 @@ export default function VCManagement() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Designation</label>
-                <input type="text" placeholder="Vice Chancellor" value={form.designation}
+                <input type="text" placeholder="Pro Vice-Chancellor" value={form.designation}
                   onChange={e => setForm(f => ({ ...f, designation: e.target.value }))}
                   className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm" />
               </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import api, { getPdfUrl } from '../api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
@@ -46,7 +47,7 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
               {[report?.subjectCode, report?.programme].filter(Boolean).join(' · ') || 'No details'}
             </p>
             {report?._id && (
-              <a href={`/api/reports/${report._id}/pdf`} target="_blank" rel="noopener noreferrer"
+              <a href={getPdfUrl(report)} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-blue-900 hover:underline mt-2 font-medium">
                 <ExternalLink size={12} /> View Feedback PDF
               </a>
@@ -514,7 +515,7 @@ export default function FacultyDashboard() {
     try {
       const { data } = await api.get(`/api/reports/${forceApproveNotif.reportId}`);
       if (data?._id) {
-        window.open(`/api/reports/${data._id}/pdf`, '_blank');
+        window.open(getPdfUrl(data), '_blank');
       } else {
         toast.error("Feedback PDF not found for this report.");
       }
@@ -683,7 +684,7 @@ export default function FacultyDashboard() {
                                 <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                                   {report.facultyName || '—'}
                                   {report._id && (
-                                    <a href={`/api/reports/${report._id}/pdf`} target="_blank" rel="noopener noreferrer"
+                                    <a href={getPdfUrl(report)} target="_blank" rel="noopener noreferrer"
                                       className="block text-xs text-indigo-600 hover:underline mt-0.5 flex items-center gap-1">
                                       <ExternalLink size={10}/> View PDF
                                     </a>

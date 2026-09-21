@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
+import { getPdfUrl } from "../api";
 import toast from "react-hot-toast";
 import {
   X,
@@ -676,7 +677,7 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                         </td>
                         <td className="px-3 py-2 text-right">
                           <a
-                            href={r._id ? `/api/reports/${r._id}/pdf` : r.driveLink}
+                            href={getPdfUrl(r)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-indigo-600 hover:underline inline-flex items-center gap-0.5"
