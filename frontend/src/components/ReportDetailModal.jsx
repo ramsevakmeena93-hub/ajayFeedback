@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown } from "lucide-react";
 import { getPdfUrl, API_BASE } from "../api";
+import toast from "react-hot-toast";
 
 const STATUS_CFG = {
   processed:        { color:"bg-emerald-100 text-emerald-700 border-emerald-200", icon:CheckCircle2, label:"Processed" },
@@ -37,16 +38,19 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
       let token = '';
       try { token = JSON.parse(localStorage.getItem('auth') || '{}').token || ''; } catch {}
 
-      const res = await fetch(`${API_BASE}/api/reports/${report._id}/pdf`, {
+      const fetchRes = await fetch(`${API_BASE}/api/reports/${report._id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Server returned ${res.status}`);
+      if (!fetchRes.ok) {
+        const errData = await fetchRes.json().catch(() => ({}));
+        if (errData.reason === 'stale_url') {
+          throw new Error('This PDF was uploaded to a previous server and is no longer available. Please re-upload the feedback PDF from the HOD dashboard.');
+        }
+        throw new Error(errData.error || `Server returned ${fetchRes.status}`);
       }
 
-      const blob = await res.blob();
+      const blob = await fetchRes.blob();
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
@@ -57,7 +61,7 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
     } catch (err) {
-      alert('Could not load PDF: ' + err.message);
+      toast.error(err.message || 'Could not load PDF', { duration: 6000 });
     } finally {
       setPdfLoading(false);
     }
