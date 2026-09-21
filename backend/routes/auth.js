@@ -12,17 +12,14 @@ const TOKEN_EXPIRY = '7d';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Domain whitelist — only @mitsgwalior.in is allowed
-// Admin accounts (role='admin') bypass this check so admin can always log in
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ALLOWED_DOMAIN = '@mitsgwalior.in';
+const ALLOWED_DOMAINS = ['@mitsgwalior.in', '@mitsgwl.ac.in'];
 
-function isAllowedEmail(email, role) {
+function isAllowedDomain(email) {
   if (!email) return false;
-  const lower = email.toLowerCase();
-  // Admin accounts bypass domain restriction
-  if (role === 'admin') return true;
-  return lower.endsWith(ALLOWED_DOMAIN);
+  const lower = email.toLowerCase().trim();
+  return ALLOWED_DOMAINS.some(domain => lower.endsWith(domain));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,25 +106,38 @@ function signToken(user, roles, activeWorkspace) {
 
 router.post('/register', async (req, res) => {
   try {
-    let { name, email, password, role, department } = req.body;
+    let { name, email, password, department } = req.body;
 
-    // Institution email → always faculty
-    if (email && email.toLowerCase().endsWith('@mitsgwalior.in')) {
-      role = 'faculty';
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const cleanEmail = email.toLowerCase().trim();
+
+    if (!isAllowedDomain(cleanEmail)) {
+      return res.status(403).json({
+        error: 'Only @mitsgwalior.in institutional emails are permitted to register.',
+      });
     }
 
-    const existing = await User.findOne({ email });
+    const existing = await User.findOne({ email: cleanEmail });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
 
     const hashed = await bcrypt.hash(password, 10);
-    const safeRole = ['hod','faculty','vc','admin'].includes(role) ? role : 'faculty';
+    // Public self-registration grants faculty role, but special accounts may have elevated roles.
+    // Assign 'vc' role for designated institutional email.
+    // Assign 'hod' role for designated HOD institutional email.
+    let safeRole = 'faculty';
+    let safeDepartment = department || '';
+    if (cleanEmail === '25tc1aj7@mitsgwl.ac.in') { safeRole = 'vc'; }
+    if (cleanEmail === '25mc1sh132@mitsgwl.ac.in') {
+      safeRole = 'hod';
+      safeDepartment = safeDepartment || 'Literature, Politics and Economics';
+    }
 
     const user = await User.create({
-      name, email,
+      name, email: cleanEmail,
       password:        hashed,
       role:            safeRole,
       roles:           [safeRole],
-      department:      department || '',
+      department:      safeDepartment,
       activeWorkspace: safeRole,
     });
 
@@ -135,7 +145,7 @@ router.post('/register', async (req, res) => {
     await UserRole.create({
       userId:          user._id,
       role:            safeRole,
-      departmentScope: department || '',
+      departmentScope: safeDepartment,
     });
 
     const payload = await buildUserPayload(user);
@@ -156,15 +166,26 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const cleanEmail = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
-      console.warn(`[Auth] Login failed — unknown email: ${email}`);
+      console.warn(`[Auth] Login failed — unknown email: ${cleanEmail}`);
       return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // Domain restriction: only @mitsgwalior.in
+    // Pre-authorized system accounts (admin, hod, vc) created by admin bypass if pre-existing
+    if (!isAllowedDomain(cleanEmail) && !['admin', 'hod', 'vc'].includes(user.role)) {
+      return res.status(403).json({
+        error: 'Access is restricted to @mitsgwalior.in accounts.',
+      });
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      console.warn(`[Auth] Login failed — wrong password for: ${email}`);
+      console.warn(`[Auth] Login failed — wrong password for: ${cleanEmail}`);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
@@ -318,7 +339,7 @@ router.get('/me', async (req, res) => {
 router.get('/vc-info', authMiddleware, async (req, res) => {
   try {
     const vc = await User.findOne({ role: 'vc' }).select('name signatureImage');
-    res.json(vc || { name: 'Vice Chancellor', signatureImage: null });
+    res.json(vc || { name: 'Pro Vice-Chancellor', signatureImage: null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -382,18 +403,25 @@ router.post('/google', async (req, res) => {
     const { email, name, picture, sub } = googlePayload;
 
     // ── Step 3: Enforce institutional domain restriction ──
-    if (!email.toLowerCase().endsWith(ALLOWED_DOMAIN)) {
-      console.warn(`[Auth] Google OAuth — blocked non-institutional email: ${email}`);
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: cleanEmail });
+    if (!isAllowedDomain(cleanEmail) && !user) {
+      console.warn(`[Auth] Google OAuth — blocked non-institutional email: ${cleanEmail}`);
       return res.status(403).json({
-        error: `Only ${ALLOWED_DOMAIN} accounts are allowed. Please use your institutional Google account.`,
+        error: `Only @mitsgwalior.in accounts are allowed. Please use your institutional Google account.`,
       });
     }
 
     // ── Step 4: Find or create user ──
-    let user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       let assignedRole = 'faculty';
+      let assignedDepartment = '';
       if (email.toLowerCase().includes('admin')) assignedRole = 'admin';
+      if (cleanEmail === '25tc1aj7@mitsgwl.ac.in') { assignedRole = 'vc'; }
+      if (cleanEmail === '25mc1sh132@mitsgwl.ac.in') {
+        assignedRole = 'hod';
+        assignedDepartment = 'Literature, Politics and Economics';
+      }
 
       const randomPassword = await bcrypt.hash(Math.random().toString(36), 10);
       user = await User.create({
@@ -402,6 +430,7 @@ router.post('/google', async (req, res) => {
         password: randomPassword,
         role: assignedRole,
         roles: [assignedRole],
+        department: assignedDepartment,
         activeWorkspace: assignedRole,
         profilePhoto: picture || '',
         googleId: sub || '',
@@ -409,16 +438,47 @@ router.post('/google', async (req, res) => {
         lastLogin: new Date(),
         currentLoginAt: new Date(),
         loginCount: 1,
-        needsDeptSetup: true,   // prompt department on first login
+        needsDeptSetup: !assignedDepartment,   // prompt department on first login if not pre-set
         profileComplete: false,
       });
 
-      await UserRole.create({ userId: user._id, role: assignedRole });
+      await UserRole.create({ userId: user._id, role: assignedRole, departmentScope: assignedDepartment });
       console.log(`[Auth] Google OAuth — new user: ${user.name} (${email}) [${assignedRole}]`);
     } else {
       // Check if account is suspended
       if (user.status === 'suspended') {
         return res.status(403).json({ error: 'Account suspended. Contact admin.' });
+      }
+
+      // ── Re-apply hardcoded role overrides for designated accounts ──
+      // This ensures the role is always correct even if the DB was modified
+      // externally (e.g. by a seed script that didn't know about this account).
+      let correctedRole = null;
+      let correctedDept = null;
+      if (cleanEmail === '25tc1aj7@mitsgwl.ac.in') {
+        correctedRole = 'vc';
+      }
+      if (cleanEmail === '25mc1sh132@mitsgwl.ac.in') {
+        correctedRole = 'hod';
+        correctedDept = 'Literature, Politics and Economics';
+      }
+
+      if (correctedRole && user.role !== correctedRole) {
+        console.log(`[Auth] Google OAuth — correcting role for ${cleanEmail}: ${user.role} → ${correctedRole}`);
+        user.role            = correctedRole;
+        user.roles           = correctedRole === 'hod' ? ['hod', 'faculty'] : [correctedRole];
+        user.activeWorkspace = correctedRole;
+        if (correctedDept && !user.department) user.department = correctedDept;
+
+        // Rebuild UserRole documents to match
+        await UserRole.deleteMany({ userId: user._id });
+        const roleDocs = correctedRole === 'hod'
+          ? [
+              { userId: user._id, role: 'hod',    departmentScope: correctedDept || user.department || '', active: true },
+              { userId: user._id, role: 'faculty', departmentScope: correctedDept || user.department || '', active: true },
+            ]
+          : [{ userId: user._id, role: correctedRole, departmentScope: user.department || '', active: true }];
+        await UserRole.create(roleDocs);
       }
 
       user.googleId       = sub || user.googleId;
@@ -428,10 +488,12 @@ router.post('/google', async (req, res) => {
       if (picture) user.profilePhoto = picture;
       await user.save();
 
-      // Backfill UserRole if missing
-      const hasRole = await UserRole.findOne({ userId: user._id, active: true });
-      if (!hasRole) {
-        await UserRole.create({ userId: user._id, role: user.role, departmentScope: user.department || '' });
+      // Backfill UserRole if missing (for all other users)
+      if (!correctedRole) {
+        const hasRole = await UserRole.findOne({ userId: user._id, active: true });
+        if (!hasRole) {
+          await UserRole.create({ userId: user._id, role: user.role, departmentScope: user.department || '' });
+        }
       }
       console.log(`[Auth] Google OAuth — login: ${user.name} (${email}) [${user.role}]`);
     }
