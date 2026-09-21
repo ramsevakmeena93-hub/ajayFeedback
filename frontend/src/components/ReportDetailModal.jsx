@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown } from "lucide-react";
+import { getPdfUrl, API_BASE } from "../api";
 
 const STATUS_CFG = {
   processed:        { color:"bg-emerald-100 text-emerald-700 border-emerald-200", icon:CheckCircle2, label:"Processed" },
@@ -16,6 +17,51 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
   const [showApproveForm, setShowApproveForm] = useState(false);
   const [approvalReason, setApprovalReason] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  // Download PDF using an authenticated fetch so the JWT is sent properly.
+  // A plain <a href> would open in a new tab with no Authorization header,
+  // causing a 401 which triggers the global interceptor and redirects the user.
+  async function handleViewPDF(e) {
+    e.preventDefault();
+
+    // External links (Google Drive, GCS) don't need auth — open directly
+    const url = getPdfUrl(report);
+    if (url.startsWith('https://drive.google.com') || url.startsWith('https://storage.googleapis.com')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      let token = '';
+      try { token = JSON.parse(localStorage.getItem('auth') || '{}').token || ''; } catch {}
+
+      const res = await fetch(`${API_BASE}/api/reports/${report._id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server returned ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${report.facultyName || 'feedback'}-report.pdf`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+    } catch (err) {
+      alert('Could not load PDF: ' + err.message);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -130,10 +176,13 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">PDF</p>
               </div>
               {(report._id || report.driveLink) ? (
-                <a href={report._id ? `/api/reports/${report._id}/pdf` : report.driveLink} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors">
-                  <ExternalLink size={13}/> View Feedback PDF
-                </a>
+                <button
+                  onClick={handleViewPDF}
+                  disabled={pdfLoading}
+                  className="flex items-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-wait w-full"
+                >
+                  <ExternalLink size={13}/> {pdfLoading ? "Loading PDF..." : "View Feedback PDF"}
+                </button>
               ) : (
                 <p className="text-xs text-slate-400 italic">No PDF link</p>
               )}
