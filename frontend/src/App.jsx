@@ -14,7 +14,7 @@ import SubmissionDetail from './pages/SubmissionDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfileCompletion from './pages/ProfileCompletion';
 
-const APP_ROLE = null;
+const APP_ROLE = typeof __APP_ROLE__ !== 'undefined' ? __APP_ROLE__ : null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading screen

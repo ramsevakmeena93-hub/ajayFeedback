@@ -16,7 +16,8 @@ import {
   Cloud,
   ChevronRight,
   ExternalLink,
-  Users
+  Users,
+  Table2
 } from "lucide-react";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -47,6 +48,8 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
 
   const [files, setFiles] = useState([]); // array of File objects
   const [isZip, setIsZip] = useState(false);
+  const [isCsv, setIsCsv] = useState(false);
+  const [csvEntries, setCsvEntries] = useState([]); // parsed links from CSV
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
   const zipInputRef = useRef(null);
+  const csvInputRef = useRef(null);
 
   const api = axios.create({
     headers: { Authorization: `Bearer ${token}` }
@@ -174,6 +178,19 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
     const arr = Array.from(newFileList);
     if (arr.length === 0) return;
 
+    // Check if CSV
+    const csvFile = arr.find(
+      f =>
+        f.name.toLowerCase().endsWith(".csv") ||
+        f.type === "text/csv" ||
+        f.type === "application/vnd.ms-excel"
+    );
+
+    if (csvFile) {
+      handleCsvFile(csvFile);
+      return;
+    }
+
     // Check if zip
     const zipFile = arr.find(
       f =>
@@ -185,6 +202,7 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
     if (zipFile) {
       setFiles([zipFile]);
       setIsZip(true);
+      setIsCsv(false);
       toast.success(`Selected archive: ${zipFile.name}`);
       return;
     }
@@ -192,11 +210,12 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
     // Filter PDFs only
     const pdfs = arr.filter(f => f.name.toLowerCase().endsWith(".pdf") || f.type === "application/pdf");
     if (pdfs.length === 0) {
-      toast.error("Please select PDF files or a ZIP archive");
+      toast.error("Please select PDF files, a ZIP archive, or a CSV file");
       return;
     }
 
     setIsZip(false);
+    setIsCsv(false);
     setFiles(prev => {
       // Merge unique by file name and size
       const existingKeys = new Set(prev.map(f => `${f.name}_${f.size}`));
@@ -205,6 +224,27 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
       toast.success(`${combined.length} PDF file(s) ready`);
       return combined;
     });
+  }
+
+  // Handle CSV file — upload to backend, parse Drive links
+  async function handleCsvFile(csvFile) {
+    setIsCsv(true);
+    setIsZip(false);
+    setFiles([csvFile]);
+
+    const fd = new FormData();
+    fd.append("csv", csvFile);
+
+    try {
+      const { data } = await api.post("/api/process/upload-csv", fd);
+      setCsvEntries(data.links || []);
+      toast.success(`${data.total || 0} Google Drive PDF links found in CSV`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to parse CSV file");
+      setFiles([]);
+      setIsCsv(false);
+      setCsvEntries([]);
+    }
   }
 
   // Execute Batch Upload
@@ -259,6 +299,59 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
         setStep(2);
         return;
       }
+    }
+
+    // CSV mode — process each Drive link one-by-one
+    if (isCsv && csvEntries.length > 0) {
+      const totalLinks = csvEntries.length;
+      setStats({ total: totalLinks, processed: 0, successful: 0, failed: 0, matchedCount: 0 });
+      setCurrentAction(`Processing ${totalLinks} PDF links from CSV...`);
+
+      for (let i = 0; i < totalLinks; i++) {
+        const entry = csvEntries[i];
+        setCurrentAction(`Downloading & analyzing PDF ${i + 1} of ${totalLinks}...`);
+
+        try {
+          const { data } = await api.post("/api/process/process-one", {
+            pdfLink: entry.pdfLink,
+            sno: i + 1,
+            responseCount: entry.responseCount,
+            department: sessionInfo.department,
+            academicYear: sessionInfo.academicYear,
+            session: sessionInfo.session,
+            feedbackFormNo: sessionInfo.feedbackFormNo
+          });
+
+          completedCount++;
+          if (data.report) {
+            allResults.push(data.report);
+            if (data.report.matched) matchedTotal++;
+          }
+        } catch (err) {
+          completedCount++;
+          allErrors.push({
+            fileName: `CSV Link #${i + 1}`,
+            error: err.response?.data?.error || "Failed to process Drive link"
+          });
+        }
+
+        const pct = Math.round(((i + 1) / totalLinks) * 95);
+        setProgress(pct);
+        setStats({
+          total: totalLinks,
+          processed: completedCount,
+          successful: allResults.length,
+          failed: allErrors.length,
+          matchedCount: matchedTotal
+        });
+      }
+
+      setProgress(100);
+      setCurrentAction("All CSV links processed!");
+      setProcessedResults(allResults);
+      setErrorsList(allErrors);
+      setStep(4);
+      return;
     }
 
     // Direct PDFs chunked upload
@@ -491,8 +584,8 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                   Supports selecting hundreds of individual PDFs, an entire folder, or a single <span className="font-semibold text-indigo-600">.ZIP</span> archive
                 </p>
 
-                {/* Quick actions for Folder and Zip */}
-                <div className="flex items-center justify-center gap-3 mt-5" onClick={e => e.stopPropagation()}>
+                {/* Quick actions for Folder, Zip, CSV */}
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-5" onClick={e => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -516,6 +609,14 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                   >
                     <Archive size={14} className="text-amber-600" />
                     Upload .ZIP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => csvInputRef.current?.click()}
+                    className="btn btn-secondary btn-sm text-xs flex items-center gap-1.5"
+                  >
+                    <Table2 size={14} className="text-emerald-600" />
+                    Upload CSV
                   </button>
                 </div>
 
@@ -544,6 +645,13 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                   className="hidden"
                   onChange={e => handleFilesAdded(e.target.files)}
                 />
+                <input
+                  ref={csvInputRef}
+                  type="file"
+                  accept=".csv,text/csv,application/vnd.ms-excel"
+                  className="hidden"
+                  onChange={e => handleFilesAdded(e.target.files)}
+                />
               </div>
 
               {/* Selected Files Badge */}
@@ -551,11 +659,13 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between animate-slide-up">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                      {isZip ? <Archive size={20} /> : <FileText size={20} />}
+                      {isCsv ? <Table2 size={20} /> : isZip ? <Archive size={20} /> : <FileText size={20} />}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800">
-                        {isZip
+                        {isCsv
+                          ? `${files[0].name} (${csvEntries.length} Drive links)`
+                          : isZip
                           ? files[0].name
                           : `${files.length} PDF file(s) selected`}
                       </p>

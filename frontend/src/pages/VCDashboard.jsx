@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import SignatureUpload from '../components/SignatureUpload';
 
 
+import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { CheckCircle, XCircle, Eye, TrendingUp, Users, FileText, AlertTriangle, Search, ChevronRight } from "lucide-react";
 
