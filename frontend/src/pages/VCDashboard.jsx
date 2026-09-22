@@ -10,6 +10,8 @@ import { CheckCircle, XCircle, Eye, TrendingUp, Users, FileText, AlertTriangle, 
 
 const STATUS_CFG = {
   submitted: { bg:"bg-amber-50",   text:"text-amber-700",   border:"border-amber-200",  dot:"bg-amber-400",   label:"Pending Review" },
+  escalated: { bg:"bg-orange-50",  text:"text-orange-700",  border:"border-orange-200", dot:"bg-orange-500",  label:"Pending VC Review" },
+  conflict:  { bg:"bg-purple-50",  text:"text-purple-700",  border:"border-purple-200", dot:"bg-purple-500",  label:"Conflict / Review" },
   approved:  { bg:"bg-teal-50",    text:"text-teal-700",    border:"border-teal-200",   dot:"bg-teal-500",    label:"Approved"       },
   rejected:  { bg:"bg-rose-50",    text:"text-rose-700",    border:"border-rose-200",   dot:"bg-rose-500",    label:"Rejected"       },
   reviewed:  { bg:"bg-slate-50",   text:"text-slate-600",   border:"border-slate-200",  dot:"bg-slate-400",   label:"Reviewed"       },
@@ -423,7 +425,7 @@ export default function VCDashboard() {
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors">
                               <Eye size={11}/> View
                             </button>
-                            {sub.status==="submitted" && <>
+                            {sub.status !== "approved" && sub.status !== "rejected" && <>
                               <button onClick={() => handleApprove(sub._id)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg transition-colors">
                                 <CheckCircle size={11}/> Approve

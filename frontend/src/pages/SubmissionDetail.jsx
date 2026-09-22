@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { ArrowLeft, CheckCircle, Clock, ExternalLink } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Clock, ExternalLink } from "lucide-react";
 
 export default function SubmissionDetail() {
   const { id }    = useParams();
@@ -64,17 +64,54 @@ export default function SubmissionDetail() {
     FFI:  r.ffiScore || 0,
   }));
 
+  const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
+
+  async function handleApprove() {
+    try {
+      await api.patch(`/api/submissions/${id}/status`, { status: "approved", vcComment: "" });
+      toast.success("Submission approved successfully");
+      setSubmission(s => ({ ...s, status: "approved" }));
+    } catch {
+      toast.error("Failed to approve submission");
+    }
+  }
+
+  async function handleReject() {
+    const reason = prompt("Enter rejection reason (optional):");
+    try {
+      await api.patch(`/api/submissions/${id}/status`, { status: "rejected", vcComment: reason || "" });
+      toast.success("Submission rejected");
+      setSubmission(s => ({ ...s, status: "rejected", vcComment: reason || "" }));
+    } catch {
+      toast.error("Failed to reject submission");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar title="Submission Detail" subtitle="VC Review" />
 
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
-        {/* Back */}
-        <button onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-          <ArrowLeft size={16} /> Back to Dashboard
-        </button>
+        {/* Back & Actions Header */}
+        <div className="flex items-center justify-between">
+          <button onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+            <ArrowLeft size={16} /> Back to Dashboard
+          </button>
+          {submission.status !== "approved" && submission.status !== "rejected" && (
+            <div className="flex items-center gap-2">
+              <button onClick={handleApprove}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow transition">
+                <CheckCircle size={14}/> Approve Submission
+              </button>
+              <button onClick={handleReject}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-xl shadow transition">
+                <XCircle size={14}/> Reject Submission
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Submission info card */}
         <div className="card p-5">
