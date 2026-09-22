@@ -178,12 +178,15 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
     const arr = Array.from(newFileList);
     if (arr.length === 0) return;
 
-    // Check if CSV
+    // Check if CSV / Excel
     const csvFile = arr.find(
       f =>
         f.name.toLowerCase().endsWith(".csv") ||
+        f.name.toLowerCase().endsWith(".xlsx") ||
+        f.name.toLowerCase().endsWith(".xls") ||
         f.type === "text/csv" ||
-        f.type === "application/vnd.ms-excel"
+        f.type === "application/vnd.ms-excel" ||
+        f.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
 
     if (csvFile) {
@@ -648,7 +651,7 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                 <input
                   ref={csvInputRef}
                   type="file"
-                  accept=".csv,text/csv,application/vnd.ms-excel"
+                  accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="hidden"
                   onChange={e => handleFilesAdded(e.target.files)}
                 />

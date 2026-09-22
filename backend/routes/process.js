@@ -15,8 +15,8 @@ const { getDriveClientForUser, ensureDriveFolder, uploadPdfToDrive } = require('
 const { authMiddleware } = require('./middleware');
 const { log } = require('../services/logger');
 
-// CSV upload: 5MB limit
-const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+// CSV / Excel upload: 20MB limit
+const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 // Batch upload (multiple PDFs or ZIP): up to 500MB, 500 files
 // Uses memoryStorage — buffers are released after each file is processed
@@ -35,13 +35,14 @@ const pdfUpload = multer({
   }
 });
 
-// ─── CSV UPLOAD — just parse links, don't process yet ──────────────────────
-router.post('/upload-csv', authMiddleware, csvUpload.single('csv'), async (req, res) => {
+// ─── CSV / EXCEL UPLOAD — parse links, don't process yet ──────────────────
+router.post('/upload-csv', authMiddleware, csvUpload.any(), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' });
+    const file = req.files && req.files.length > 0 ? req.files[0] : req.file;
+    if (!file) return res.status(400).json({ error: 'No CSV or Excel file uploaded' });
 
-    const entries = parseCSV(req.file.buffer);
-    if (entries.length === 0) return res.status(400).json({ error: 'No valid Drive links found in CSV' });
+    const entries = parseCSV(file.buffer);
+    if (entries.length === 0) return res.status(400).json({ error: 'No valid Drive or PDF links found in the uploaded file. Please ensure your file contains URL links.' });
 
     // Return just the links — don't create DB records yet
     res.json({
@@ -50,6 +51,7 @@ router.post('/upload-csv', authMiddleware, csvUpload.single('csv'), async (req, 
       total: entries.length
     });
   } catch (err) {
+    console.error('[upload-csv] Error parsing file:', err);
     res.status(500).json({ error: err.message });
   }
 });
