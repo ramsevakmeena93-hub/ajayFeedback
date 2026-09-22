@@ -1,10 +1,12 @@
 /**
- * GoogleDrivePanel.jsx — Google Drive integration panel
- * Sits beside "Upload Feedback Reports" button in HODDashboard toolbar.
- * Completely separate from existing upload workflow.
+ * GoogleDrivePanel.jsx
+ * Google Drive panel — sits beside "Upload Feedback Reports" button.
+ * Uses React Portal so it renders at document.body level,
+ * completely outside the dark dashboard container.
  */
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -13,49 +15,37 @@ import {
 } from "lucide-react";
 
 export default function GoogleDrivePanel({ token }) {
-  const [status,     setStatus]     = useState({ connected: false, email: "", loading: true });
-  const [files,      setFiles]      = useState([]);
-  const [savedFiles, setSavedFiles] = useState([]);
-  const [fetching,   setFetching]   = useState(false);
-  const [saving,     setSaving]     = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [search,     setSearch]     = useState("");
-  const [nextPage,   setNextPage]   = useState(null);
-  const [open,       setOpen]       = useState(false);
+  const [status,      setStatus]      = useState({ connected: false, email: "", loading: true });
+  const [files,       setFiles]       = useState([]);
+  const [savedFiles,  setSavedFiles]  = useState([]);
+  const [fetching,    setFetching]    = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [connecting,  setConnecting]  = useState(false);
+  const [search,      setSearch]      = useState("");
+  const [nextPage,    setNextPage]    = useState(null);
+  const [open,        setOpen]        = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [btnRect,     setBtnRect]     = useState(null);
 
+  const btnRef   = useRef(null);
   const pollRef  = useRef(null);
   const popupRef = useRef(null);
-  const panelRef = useRef(null);
-
-  const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
 
   const GOOGLE_CLIENT_ID =
     import.meta.env.VITE_GOOGLE_CLIENT_ID ||
     "32902780570-ltgii8ds5cf6pp8elj3uapsao7a78u88.apps.googleusercontent.com";
 
-  // ── Close panel when clicking outside ──────────────────────────────────
-  useEffect(() => {
-    function handleOutside(e) {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, [open]);
+  const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
 
-  // ── On mount: check status + load saved files ───────────────────────────
+  // ── mount ────────────────────────────────────────────────────────────────
   useEffect(() => {
     checkStatus();
     loadSavedFiles();
-
-    // Handle redirect after backend OAuth callback
     const p = new URLSearchParams(window.location.search);
     if (p.get("drive_connected") === "1") {
       toast.success("Google Drive connected!");
       window.history.replaceState({}, "", window.location.pathname);
-      checkStatus();
-      loadSavedFiles();
-      setOpen(true);
+      checkStatus(); loadSavedFiles(); setOpen(true);
     }
     if (p.get("drive_error")) {
       toast.error("Drive error: " + decodeURIComponent(p.get("drive_error")));
@@ -63,6 +53,38 @@ export default function GoogleDrivePanel({ token }) {
     }
   }, []);
 
+  // close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function onOutside(e) {
+      if (btnRef.current && !btnRef.current.contains(e.target)) {
+        // check if click is inside the portal panel
+        const portal = document.getElementById("gdrive-panel-portal");
+        if (portal && portal.contains(e.target)) return;
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+
+  // reposition on scroll/resize
+  useEffect(() => {
+    if (!open) return;
+    function update() {
+      if (btnRef.current) setBtnRect(btnRef.current.getBoundingClientRect());
+    }
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  // ── api helpers ──────────────────────────────────────────────────────────
   async function checkStatus() {
     try {
       const { data } = await api.get("/api/drive/status");
@@ -79,37 +101,29 @@ export default function GoogleDrivePanel({ token }) {
     } catch {}
   }
 
-  // ── Connect: try silent token first, fall back to popup OAuth ───────────
+  // ── toggle button ────────────────────────────────────────────────────────
+  function handleToggle() {
+    if (!open && btnRef.current) setBtnRect(btnRef.current.getBoundingClientRect());
+    setOpen(o => !o);
+  }
+
+  // ── connect ──────────────────────────────────────────────────────────────
   async function handleConnect() {
     setConnecting(true);
-
-    // Try Google Identity Services token client (silent — reuses logged-in session)
     if (window.google?.accounts?.oauth2) {
       try {
         const client = window.google.accounts.oauth2.initTokenClient({
           client_id: GOOGLE_CLIENT_ID,
-          scope: [
-            "https://www.googleapis.com/auth/drive.readonly",
-            "https://www.googleapis.com/auth/userinfo.email",
-          ].join(" "),
-          prompt: "",  // empty = reuse existing Google session, no login screen
+          scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+          prompt: "",
           callback: async (resp) => {
-            if (resp.error) {
-              // Silent failed → try popup OAuth
-              connectViaPopup();
-              return;
-            }
-            // Send access token to existing drive-connect endpoint
+            if (resp.error) { connectViaPopup(); return; }
             try {
               const { data } = await api.post("/api/auth/google/drive-connect", {
                 tokens: { access_token: resp.access_token },
                 email: "",
               });
-              setStatus({
-                connected: true,
-                email: data.user?.googleDriveEmail || data.user?.email || "",
-                loading: false,
-              });
+              setStatus({ connected: true, email: data.user?.googleDriveEmail || data.user?.email || "", loading: false });
               toast.success("Google Drive connected!");
               setConnecting(false);
               await loadSavedFiles();
@@ -121,33 +135,21 @@ export default function GoogleDrivePanel({ token }) {
         });
         client.requestAccessToken({ prompt: "" });
         return;
-      } catch {
-        // fall through
-      }
+      } catch { /* fall through */ }
     }
-
-    // Fallback: backend authorization code flow → popup
     connectViaPopup();
   }
 
   async function connectViaPopup() {
     try {
       const { data } = await api.get("/api/drive/auth-url");
-      if (!data.url) throw new Error("No auth URL returned");
-
+      if (!data.url) throw new Error("No auth URL");
       const w = 500, h = 650;
       const l = window.screenX + (window.outerWidth  - w) / 2;
       const t = window.screenY + (window.outerHeight - h) / 2;
-
-      const popup = window.open(
-        data.url,
-        "gdrive_oauth",
-        `width=${w},height=${h},left=${l},top=${t},toolbar=0,menubar=0`
-      );
-      popupRef.current = popup;
-
+      const popup = window.open(data.url, "gdrive_oauth", `width=${w},height=${h},left=${l},top=${t},toolbar=0,menubar=0`);
       if (!popup) { window.location.href = data.url; return; }
-
+      popupRef.current = popup;
       pollRef.current = setInterval(async () => {
         if (popup.closed) {
           clearInterval(pollRef.current);
@@ -161,7 +163,7 @@ export default function GoogleDrivePanel({ token }) {
     }
   }
 
-  // ── Disconnect ───────────────────────────────────────────────────────────
+  // ── disconnect ───────────────────────────────────────────────────────────
   async function handleDisconnect() {
     if (!window.confirm("Disconnect Google Drive?")) return;
     try {
@@ -174,26 +176,19 @@ export default function GoogleDrivePanel({ token }) {
     }
   }
 
-  // ── Fetch files from Drive ───────────────────────────────────────────────
+  // ── generate links ───────────────────────────────────────────────────────
   async function handleGenerateLinks(pageToken = null) {
     setFetching(true);
     try {
       const params = new URLSearchParams();
       if (search)    params.set("search",    search);
       if (pageToken) params.set("pageToken", pageToken);
-
       const { data } = await api.get(`/api/drive/files?${params}`);
       const newFiles = data.files || [];
-
-      if (pageToken) {
-        setFiles(prev => [...prev, ...newFiles]);
-      } else {
-        setFiles(newFiles);
-        setSelectedIds(new Set(newFiles.map(f => f.fileId)));
-      }
+      if (pageToken) setFiles(prev => [...prev, ...newFiles]);
+      else { setFiles(newFiles); setSelectedIds(new Set(newFiles.map(f => f.fileId))); }
       setNextPage(data.nextPageToken || null);
-
-      if (newFiles.length === 0) toast("No PDF files found in your Drive", { icon: "📂" });
+      if (!newFiles.length) toast("No PDF files found in your Drive", { icon: "📂" });
       else toast.success(`Found ${newFiles.length} PDF(s)`);
     } catch (err) {
       if (err.response?.data?.needsReconnect) {
@@ -202,12 +197,10 @@ export default function GoogleDrivePanel({ token }) {
       } else {
         toast.error(err.response?.data?.error || "Failed to fetch Drive files");
       }
-    } finally {
-      setFetching(false);
-    }
+    } finally { setFetching(false); }
   }
 
-  // ── Save links to DB ─────────────────────────────────────────────────────
+  // ── save links ───────────────────────────────────────────────────────────
   async function handleSaveLinks() {
     const toSave = files.filter(f => selectedIds.has(f.fileId));
     if (!toSave.length) return toast.error("Select at least one file");
@@ -219,274 +212,227 @@ export default function GoogleDrivePanel({ token }) {
       setSelectedIds(new Set());
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to save links");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   function toggleSelect(id) {
-    setSelectedIds(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function toggleAll() {
     setSelectedIds(selectedIds.size === files.length ? new Set() : new Set(files.map(f => f.fileId)));
   }
+  const filtered = files.filter(f => !search || f.name.toLowerCase().includes(search.toLowerCase()));
 
-  const filtered = files.filter(f =>
-    !search || f.name.toLowerCase().includes(search.toLowerCase())
+  // ── styles (plain JS objects — immune to Tailwind dark mode) ────────────
+  const S = {
+    panel: {
+      position: "fixed",
+      top:      (btnRect?.bottom ?? 120) + 6,
+      left:     btnRect?.left ?? 20,
+      zIndex:   999999,
+      width:    400,
+      maxHeight: 540,
+      background: "#ffffff",
+      color:      "#1e293b",
+      borderRadius: 16,
+      boxShadow: "0 24px 64px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.10)",
+      border:    "1px solid #e2e8f0",
+      overflow:  "hidden",
+      display:   "flex",
+      flexDirection: "column",
+      fontFamily: "inherit",
+    },
+    header: { background: "linear-gradient(to right,#eef2ff,#f8fafc)", borderBottom: "1px solid #f1f5f9", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 },
+    body:   { padding: 16, overflowY: "auto", flex: 1, background: "#ffffff", display: "flex", flexDirection: "column", gap: 12 },
+    iconBox:{ width: 28, height: 28, borderRadius: 8, background: "#4f46e5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+    badge:  { display:"flex", alignItems:"center", justifyContent:"space-between", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:12, padding:"8px 12px" },
+    row:    (sel) => ({ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderBottom:"1px solid #f8fafc", background: sel ? "#eef2ff" : "#ffffff" }),
+  };
+
+  // ── portal content ───────────────────────────────────────────────────────
+  const panelJSX = (
+    <div id="gdrive-panel-portal" style={S.panel}>
+      {/* Header */}
+      <div style={S.header}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <div style={S.iconBox}><HardDrive size={14} color="#fff" /></div>
+          <div>
+            <p style={{ fontSize:14, fontWeight:700, color:"#1e293b", margin:0 }}>Google Drive Files</p>
+            {status.connected && <p style={{ fontSize:11, color:"#94a3b8", margin:0 }}>{status.email}</p>}
+          </div>
+        </div>
+        <button onClick={() => setOpen(false)} style={{ border:"none", background:"none", cursor:"pointer", color:"#94a3b8", display:"flex", padding:4, borderRadius:8 }}>
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div style={S.body}>
+
+        {/* ── NOT CONNECTED ── */}
+        {!status.connected && (
+          <div style={{ textAlign:"center", padding:"20px 0" }}>
+            <div style={{ width:56, height:56, borderRadius:16, background:"#f1f5f9", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px" }}>
+              <HardDrive size={24} color="#94a3b8" />
+            </div>
+            <p style={{ fontSize:14, fontWeight:700, color:"#334155", margin:"0 0 6px" }}>Connect Your Google Drive</p>
+            <p style={{ fontSize:12, color:"#94a3b8", margin:"0 0 16px", lineHeight:1.6 }}>
+              One click to link your Google account.<br />
+              System automatically fetches PDFs and generates links.
+            </p>
+            <button
+              onClick={handleConnect}
+              disabled={connecting}
+              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 20px", background: connecting ? "#818cf8" : "#4f46e5", color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:600, cursor: connecting ? "not-allowed" : "pointer" }}
+            >
+              {connecting
+                ? <><Loader2 size={14} style={{ animation:"spin 1s linear infinite" }} /> Connecting…</>
+                : <><HardDrive size={14} /> Connect Google Drive</>
+              }
+            </button>
+            <p style={{ fontSize:11, color:"#cbd5e1", marginTop:10 }}>Read-only access · Only you see your files</p>
+          </div>
+        )}
+
+        {/* ── CONNECTED ── */}
+        {status.connected && (
+          <>
+            {/* Status badge */}
+            <div style={S.badge}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <CheckCircle2 size={15} color="#16a34a" />
+                <div>
+                  <p style={{ fontSize:12, fontWeight:700, color:"#166534", margin:0 }}>Google Drive ✓ Connected</p>
+                  <p style={{ fontSize:11, color:"#22c55e", margin:0 }}>{status.email}</p>
+                </div>
+              </div>
+              <button onClick={handleDisconnect} style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:"#ef4444", background:"none", border:"none", cursor:"pointer", padding:"4px 8px", borderRadius:8 }}>
+                <Unlink size={11} /> Disconnect
+              </button>
+            </div>
+
+            {/* Search + Generate */}
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ position:"relative", flex:1 }}>
+                <Search size={12} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#94a3b8" }} />
+                <input
+                  type="text"
+                  placeholder="Search PDFs…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{ width:"100%", paddingLeft:28, paddingRight:10, paddingTop:7, paddingBottom:7, fontSize:12, border:"1px solid #e2e8f0", borderRadius:10, outline:"none", background:"#fff", color:"#334155", boxSizing:"border-box" }}
+                />
+              </div>
+              <button
+                onClick={() => handleGenerateLinks()}
+                disabled={fetching}
+                style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"7px 14px", background: fetching ? "#818cf8" : "#4f46e5", color:"#fff", border:"none", borderRadius:10, fontSize:12, fontWeight:600, cursor: fetching ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}
+              >
+                {fetching ? <><Loader2 size={12} style={{ animation:"spin 1s linear infinite" }} /> Loading…</> : <><Link2 size={12} /> Generate Links</>}
+              </button>
+            </div>
+
+            {/* File list */}
+            {filtered.length > 0 && (
+              <div style={{ border:"1px solid #e2e8f0", borderRadius:12, overflow:"hidden" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:"#f8fafc", borderBottom:"1px solid #f1f5f9" }}>
+                  <input type="checkbox" checked={selectedIds.size === files.length && files.length > 0} onChange={toggleAll} style={{ accentColor:"#4f46e5" }} />
+                  <span style={{ fontSize:11, fontWeight:700, color:"#64748b", flex:1, textTransform:"uppercase", letterSpacing:1 }}>File Name</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:1 }}>Open</span>
+                </div>
+                <div style={{ maxHeight:200, overflowY:"auto" }}>
+                  {filtered.map(f => (
+                    <div key={f.fileId} style={S.row(selectedIds.has(f.fileId))}>
+                      <input type="checkbox" checked={selectedIds.has(f.fileId)} onChange={() => toggleSelect(f.fileId)} style={{ accentColor:"#4f46e5" }} />
+                      <FileText size={12} color="#f87171" style={{ flexShrink:0 }} />
+                      <span style={{ fontSize:12, color:"#334155", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={f.name}>{f.name}</span>
+                      <a href={f.driveUrl} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:3, fontSize:11, color:"#4f46e5", textDecoration:"none", flexShrink:0 }}>
+                        Open <ExternalLink size={10} />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+                {nextPage && (
+                  <div style={{ padding:"8px 12px", textAlign:"center", background:"#fff", borderTop:"1px solid #f1f5f9" }}>
+                    <button onClick={() => handleGenerateLinks(nextPage)} disabled={fetching} style={{ fontSize:12, color:"#4f46e5", background:"none", border:"none", cursor:"pointer" }}>Load more…</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Save button */}
+            {files.length > 0 && (
+              <button
+                onClick={handleSaveLinks}
+                disabled={saving || selectedIds.size === 0}
+                style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"10px 16px", background: saving || selectedIds.size === 0 ? "#86efac" : "#16a34a", color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:700, cursor: saving || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
+              >
+                {saving
+                  ? <><Loader2 size={13} style={{ animation:"spin 1s linear infinite" }} /> Saving…</>
+                  : <><Link2 size={13} /> Save {selectedIds.size > 0 ? `${selectedIds.size} ` : ""}Link{selectedIds.size !== 1 ? "s" : ""} to Database</>
+                }
+              </button>
+            )}
+
+            {/* Saved files */}
+            {savedFiles.length > 0 && (
+              <div>
+                <p style={{ fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:1, margin:"0 0 8px" }}>Saved Links ({savedFiles.length})</p>
+                <div style={{ border:"1px solid #e2e8f0", borderRadius:12, maxHeight:160, overflowY:"auto" }}>
+                  {savedFiles.map(f => (
+                    <div key={f._id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderBottom:"1px solid #f8fafc", background:"#fff" }}>
+                      <FileText size={12} color="#f87171" style={{ flexShrink:0 }} />
+                      <span style={{ fontSize:12, color:"#334155", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={f.fileName}>{f.fileName}</span>
+                      <a href={f.googleDriveUrl} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:3, fontSize:11, color:"#4f46e5", textDecoration:"none", flexShrink:0 }}>
+                        Open <ExternalLink size={10} />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {files.length === 0 && savedFiles.length === 0 && (
+              <div style={{ textAlign:"center", padding:"16px 0", color:"#94a3b8", fontSize:12 }}>
+                <FileText size={22} style={{ margin:"0 auto 8px", color:"#cbd5e1", display:"block" }} />
+                Click "Generate Links" to fetch PDFs from your Drive
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
-
-  // ── RENDER ───────────────────────────────────────────────────────────────
+  // ── render ───────────────────────────────────────────────────────────────
   return (
-    <div className="relative" ref={panelRef}>
-      {/* Trigger button */}
+    <>
       <button
-        onClick={() => setOpen(o => !o)}
-        className={`btn btn-sm flex items-center gap-1.5 ${
-          status.connected
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-            : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-        } rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors shadow-sm`}
+        ref={btnRef}
+        onClick={handleToggle}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "6px 12px",
+          background: status.connected ? "#f0fdf4" : "#ffffff",
+          color:      status.connected ? "#15803d" : "#475569",
+          border:     status.connected ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
+          borderRadius: 10, fontSize: 12, fontWeight: 600,
+          cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+        }}
       >
         {status.loading
-          ? <Loader2 size={13} className="animate-spin" />
+          ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
           : <HardDrive size={13} />
         }
         {status.connected ? "Drive ✓" : "Google Drive"}
-        <ChevronDown size={11} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
       </button>
 
-      {/* Dropdown panel — forced light background, no dark mode */}
-      {open && (
-        <div
-          className="absolute left-0 top-10 z-[9999] w-[400px] rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
-          style={{ background: "#ffffff", color: "#1e293b" }}
-        >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-4 py-3 border-b border-slate-100"
-            style={{ background: "linear-gradient(to right, #eef2ff, #f8fafc)" }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-                <HardDrive size={14} className="text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Google Drive Files</p>
-                {status.connected && (
-                  <p className="text-[11px] text-slate-400">{status.email}</p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-200 text-slate-400"
-            >
-              <X size={13} />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto" style={{ background: "#ffffff" }}>
-
-            {/* ── NOT CONNECTED ── */}
-            {!status.connected && (
-              <div className="text-center py-5 space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
-                  <HardDrive size={24} className="text-slate-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-700">Connect Your Google Drive</p>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-[260px] mx-auto">
-                    One click to link your Google account. The system automatically
-                    fetches your PDFs and generates shareable links.
-                  </p>
-                </div>
-                <button
-                  onClick={handleConnect}
-                  disabled={connecting}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 shadow-sm"
-                >
-                  {connecting
-                    ? <><Loader2 size={14} className="animate-spin" /> Connecting…</>
-                    : <><HardDrive size={14} /> Connect Google Drive</>
-                  }
-                </button>
-                <p className="text-[11px] text-slate-400">Read-only access · Only you see your files</p>
-              </div>
-            )}
-
-            {/* ── CONNECTED ── */}
-            {status.connected && (
-              <>
-                {/* Status badge */}
-                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={15} className="text-emerald-600" />
-                    <div>
-                      <p className="text-xs font-bold text-emerald-800">Google Drive ✓ Connected</p>
-                      <p className="text-[11px] text-emerald-600">{status.email}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleDisconnect}
-                    className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
-                  >
-                    <Unlink size={11} /> Disconnect
-                  </button>
-                </div>
-
-                {/* Search + Generate */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search PDFs…"
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-slate-700"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleGenerateLinks()}
-                    disabled={fetching}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60 whitespace-nowrap"
-                  >
-                    {fetching
-                      ? <><Loader2 size={12} className="animate-spin" /> Loading…</>
-                      : <><Link2 size={12} /> Generate Links</>
-                    }
-                  </button>
-                </div>
-
-                {/* File list */}
-                {filtered.length > 0 && (
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    {/* Header row */}
-                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.size === files.length && files.length > 0}
-                        onChange={toggleAll}
-                        className="rounded accent-indigo-600"
-                      />
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide flex-1">
-                        File Name
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Open</span>
-                    </div>
-
-                    {/* Rows */}
-                    <div className="divide-y divide-slate-100 max-h-[200px] overflow-y-auto">
-                      {filtered.map(f => (
-                        <div
-                          key={f.fileId}
-                          className={`flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors ${
-                            selectedIds.has(f.fileId) ? "bg-indigo-50/50" : "bg-white"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(f.fileId)}
-                            onChange={() => toggleSelect(f.fileId)}
-                            className="rounded accent-indigo-600 shrink-0"
-                          />
-                          <FileText size={12} className="text-red-400 shrink-0" />
-                          <span
-                            className="text-xs text-slate-700 flex-1 truncate"
-                            title={f.name}
-                          >
-                            {f.name}
-                          </span>
-                          <a
-                            href={f.driveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-indigo-600 hover:underline shrink-0"
-                          >
-                            Open <ExternalLink size={10} />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Load more */}
-                    {nextPage && (
-                      <div className="px-3 py-2 border-t border-slate-100 text-center bg-white">
-                        <button
-                          onClick={() => handleGenerateLinks(nextPage)}
-                          disabled={fetching}
-                          className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
-                        >
-                          Load more…
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Save button */}
-                {files.length > 0 && (
-                  <button
-                    onClick={handleSaveLinks}
-                    disabled={saving || selectedIds.size === 0}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-                  >
-                    {saving
-                      ? <><Loader2 size={13} className="animate-spin" /> Saving…</>
-                      : <><Link2 size={13} /> Save {selectedIds.size > 0 ? `${selectedIds.size} ` : ""}Link{selectedIds.size !== 1 ? "s" : ""} to Database</>
-                    }
-                  </button>
-                )}
-
-                {/* Saved files */}
-                {savedFiles.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                      Saved Links ({savedFiles.length})
-                    </p>
-                    <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-[160px] overflow-y-auto">
-                      {savedFiles.map(f => (
-                        <div key={f._id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 bg-white">
-                          <FileText size={12} className="text-red-400 shrink-0" />
-                          <span
-                            className="text-xs text-slate-700 flex-1 truncate"
-                            title={f.fileName}
-                          >
-                            {f.fileName}
-                          </span>
-                          <a
-                            href={f.googleDriveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-indigo-600 hover:underline shrink-0"
-                          >
-                            Open <ExternalLink size={10} />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {files.length === 0 && savedFiles.length === 0 && (
-                  <div className="text-center py-4 text-xs text-slate-400">
-                    <FileText size={22} className="mx-auto mb-2 text-slate-300" />
-                    Click "Generate Links" to fetch PDFs from your Drive
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      {open && btnRect && typeof document !== "undefined"
+        ? createPortal(panelJSX, document.body)
+        : null
+      }
+    </>
   );
 }
