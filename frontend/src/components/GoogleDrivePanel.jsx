@@ -87,17 +87,65 @@ export default function GoogleDrivePanel({ token }) {
     } catch {}
   }
 
-  // ── Connect Google Drive via OAuth popup ─────────────────────────────────
+  // ── Connect Google Drive — uses existing Google session silently ────────
   async function handleConnect() {
     setConnecting(true);
-    try {
-      // Get the OAuth URL from backend
-      const { data } = await api.get("/api/drive/auth-url");
-      const authUrl  = data.url;
 
+    const clientId =
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      "32902780570-ltgii8ds5cf6pp8elj3uapsao7a78u88.apps.googleusercontent.com";
+
+    // Try Google Identity Services token client first (silent — reuses existing session)
+    if (window.google?.accounts?.oauth2) {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+          // Empty prompt = reuse existing Google session silently (no login screen)
+          prompt: "",
+          callback: async (tokenResponse) => {
+            setConnecting(false);
+            if (tokenResponse.error) {
+              // If silent auth fails, fall back to full OAuth popup via backend
+              _connectViaBackendOAuth();
+              return;
+            }
+            try {
+              const { data } = await api.post("/api/auth/google/drive-connect", {
+                tokens: tokenResponse,
+                email: tokenResponse.email || "",
+              });
+              setStatus({
+                connected: true,
+                email: data.user?.googleDriveEmail || "",
+                loading: false,
+              });
+              toast.success("Google Drive connected!");
+              await loadSavedFiles();
+            } catch (err) {
+              toast.error(err.response?.data?.error || "Failed to save Drive connection");
+            }
+          },
+        });
+        // Request token — Google will use existing session without showing login
+        client.requestAccessToken({ prompt: "" });
+        return;
+      } catch {
+        // Fall through to backend OAuth
+      }
+    }
+
+    // Fallback: backend OAuth code flow (opens popup)
+    _connectViaBackendOAuth();
+  }
+
+  // Backend OAuth popup fallback
+  async function _connectViaBackendOAuth() {
+    try {
+      const { data } = await api.get("/api/drive/auth-url");
+      const authUrl = data.url;
       if (!authUrl) throw new Error("Could not get authorization URL");
 
-      // Open OAuth consent screen in a popup window
       const width  = 500;
       const height = 650;
       const left   = window.screenX + (window.outerWidth  - width)  / 2;
@@ -111,17 +159,14 @@ export default function GoogleDrivePanel({ token }) {
       popupRef.current = popup;
 
       if (!popup) {
-        // Popup blocked — fall back to same-tab redirect
         window.location.href = authUrl;
         return;
       }
 
-      // Poll every second to detect when popup closes
       pollRef.current = setInterval(async () => {
         if (popup.closed) {
           clearInterval(pollRef.current);
           setConnecting(false);
-          // Give backend a moment to save tokens then re-check
           setTimeout(async () => {
             await checkStatus();
             await loadSavedFiles();
@@ -130,7 +175,7 @@ export default function GoogleDrivePanel({ token }) {
       }, 1000);
     } catch (err) {
       setConnecting(false);
-      toast.error(err.response?.data?.error || err.message || "Failed to start Drive connection");
+      toast.error(err.response?.data?.error || err.message || "Failed to connect Drive");
     }
   }
 
