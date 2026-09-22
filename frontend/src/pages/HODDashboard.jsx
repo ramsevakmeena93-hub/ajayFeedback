@@ -9,6 +9,7 @@ import BatchPDFUploadModal from "../components/BatchPDFUploadModal";
 import Footer from "../components/Footer";
 import WorkspaceSwitcher from "../components/WorkspaceSwitcher";
 import { Upload, Send, Trash2, RefreshCw, Wrench, Users, Plus, Download, FileText, X, ChevronRight, PenLine, Clock, CheckCircle, AlertTriangle, ShieldAlert } from "lucide-react";
+import GoogleDrivePanel from "../components/GoogleDrivePanel";
 
 // Dynamic academic year list from 2020 to 10 years ahead
 const CURRENT_YEAR = new Date().getFullYear();
@@ -404,6 +405,10 @@ export default function HODDashboard() {
                   <button onClick={() => setShowBatchModal(true)} className="btn btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
                     <Plus size={15} /> Upload Feedback Reports
                   </button>
+
+                  {/* ── Google Drive Panel — sits right next to Upload button, fully separate ── */}
+                  <GoogleDrivePanel token={token} />
+
                   {reports.length > 0 && <>
                     <button onClick={fixMetadata} className="btn btn-secondary btn-sm text-indigo-600">
                       <Wrench size={14} /> Fix Names
