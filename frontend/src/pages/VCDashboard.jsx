@@ -4,8 +4,6 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import SignatureUpload from '../components/SignatureUpload';
-
-
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { CheckCircle, XCircle, Eye, TrendingUp, Users, FileText, AlertTriangle, Search, ChevronRight } from "lucide-react";
@@ -26,9 +24,9 @@ export default function VCDashboard() {
   const [search, setSearch] = useState("");
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectComment, setRejectComment] = useState("");
-  const [activeTab, setActiveTab] = useState("submissions"); // "submissions" | "analysis"
+  const [activeTab, setActiveTab] = useState("submissions");
   const [showSignatureModal, setShowSignatureModal] = useState(false);
-const [pendingApproveId, setPendingApproveId] = useState(null);
+  const [pendingApproveId, setPendingApproveId] = useState(null);
 
   const api = axios.create({ headers: { Authorization: `Bearer ${token}` } });
 
