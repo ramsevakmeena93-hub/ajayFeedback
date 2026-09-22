@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 const SOCKET_URL = import.meta.env.VITE_API_URL
   || (import.meta.env.PROD
-    ? 'https://feedbackbackend-production-db19.up.railway.app'
+    ? 'https://ajayfeedback-backend.onrender.com'
     : 'http://localhost:5000');
 
 // ─────────────────────────────────────────────────────────────────────────────

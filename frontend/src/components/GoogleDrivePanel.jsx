@@ -228,7 +228,7 @@ export default function GoogleDrivePanel({ token }) {
         ) : (
           <div style={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: 12, padding: "10px 12px" }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: "#854d0e", margin: "0 0 2px" }}>⚠️ Service Account Not Configured</p>
-            <p style={{ fontSize: 11, color: "#a16207", margin: 0 }}>Ask the admin to set GOOGLE_SERVICE_ACCOUNT_KEY and GOOGLE_DRIVE_FOLDER_ID in Render.</p>
+            <p style={{ fontSize: 11, color: "#a16207", margin: 0 }}>Ask the admin to set GOOGLE_SERVICE_ACCOUNT_KEY and GOOGLE_DRIVE_FOLDER_ID in Railway/Render.</p>
           </div>
         )}
 

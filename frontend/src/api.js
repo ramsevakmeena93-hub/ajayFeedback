@@ -3,10 +3,10 @@ import axios from 'axios';
 // Base URL — in prod Railway, in dev localhost:5000
 const isProd = import.meta.env.PROD;
 export const API_BASE = import.meta.env.VITE_API_URL
-  || (isProd ? 'https://feedbackbackend-production-db19.up.railway.app' : 'http://localhost:5000');
+  || (isProd ? 'https://ajayfeedback-backend.onrender.com' : 'http://localhost:5000');
 
 const baseURL = import.meta.env.VITE_API_URL
-  || (isProd ? 'https://feedbackbackend-production-db19.up.railway.app' : '');
+  || (isProd ? 'https://ajayfeedback-backend.onrender.com' : '');
 
 export function getPdfUrl(report) {
   if (!report) return '#';

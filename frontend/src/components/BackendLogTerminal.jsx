@@ -53,7 +53,7 @@ export default function BackendLogTerminal({ token, onClose }) {
     const isProd = import.meta.env.PROD;
     const base =
       import.meta.env.VITE_API_URL ||
-      (isProd ? 'https://feedbackbackend-production-db19.up.railway.app' : '');
+      (isProd ? 'https://ajayfeedback-backend.onrender.com' : '');
     const es = new EventSource(
       `${base}/api/logstream/stream?token=${encodeURIComponent(token)}`
     );
