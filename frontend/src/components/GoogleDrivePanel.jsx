@@ -114,7 +114,7 @@ export default function GoogleDrivePanel({ token }) {
       try {
         const client = window.google.accounts.oauth2.initTokenClient({
           client_id: GOOGLE_CLIENT_ID,
-          scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+          scope: "https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/userinfo.email",
           prompt: "",
           callback: async (resp) => {
             if (resp.error) { connectViaPopup(); return; }
