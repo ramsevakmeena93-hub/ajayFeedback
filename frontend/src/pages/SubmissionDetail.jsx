@@ -201,6 +201,7 @@ export default function SubmissionDetail() {
                     <th className="px-4 py-3 text-left">Needs Attention</th>
                     <th className="px-4 py-3 text-left">HOD Remarks</th>
                     <th className="px-4 py-3 text-left">Action Taken</th>
+                    <th className="px-4 py-3 text-left">Faculty Ack.</th>
                     <th className="px-4 py-3 text-center">Status</th>
                   </tr>
                 </thead>
@@ -256,6 +257,11 @@ export default function SubmissionDetail() {
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-600 max-w-[130px]">{r.hodRemarks||<span className="text-slate-300">—</span>}</td>
                         <td className="px-4 py-3 text-xs text-slate-600 max-w-[130px]">{r.actionTaken||<span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600 max-w-[130px]">
+                          {r.facultyAcknowledged
+                            ? <span className="text-emerald-600 font-semibold">✓ {r.facultyAcknowledgedAt ? new Date(r.facultyAcknowledgedAt).toLocaleDateString("en-IN") : "Yes"}</span>
+                            : <span className="text-slate-300">Pending</span>}
+                        </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           {r.status==="faculty_approved"
                             ? <span className="badge-emerald flex items-center gap-1 justify-center"><CheckCircle size={10}/>Approved</span>

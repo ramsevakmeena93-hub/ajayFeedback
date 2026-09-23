@@ -64,14 +64,13 @@ function EditableComments({ reportId, field, items, color, commentPercentages, o
   const pcts = !isAtt && commentPercentages ? Object.entries(commentPercentages).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]) : [];
   return (
     <div className="group relative cursor-pointer" onClick={() => { setVal((items||[]).join('\n')); setEditing(true); }}>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 max-h-[120px] overflow-y-auto scrollbar-thin pr-1">
         {!isAtt && pcts.map(([k,v],i) => (
           <div key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-2 py-0.5 text-xs font-medium">{k}: {v}%</div>
         ))}
-        {display ? display.slice(0,2).map((c,i) => (
+        {display ? display.map((c,i) => (
           <div key={i} className={`border rounded px-2 py-0.5 text-xs leading-snug ${bg}`}>{c}</div>
         )) : <span className="text-slate-300 italic text-xs">-</span>}
-        {display && display.length > 2 && <span className="text-xs text-slate-400">+{display.length-2} more</span>}
       </div>
       <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition"><Pencil size={10} className="text-slate-400"/></span>
     </div>

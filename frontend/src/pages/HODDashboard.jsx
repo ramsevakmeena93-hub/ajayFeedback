@@ -66,7 +66,7 @@ export default function HODDashboard() {
     try {
       const { data } = await api.get("/api/reports/my");
       setReports(data);
-      const autoSelect = data.filter(r => r.status === "faculty_approved" || r.status === "processed").map(r => r._id);
+      const autoSelect = [];
       setSelected(autoSelect);
     }
     catch (err) {
@@ -270,7 +270,7 @@ export default function HODDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200">
-      <Navbar title="Faculty Feedback Reports" subtitle={currentSession ? `${currentSession.department} · ${currentSession.academicYear}` : `${user?.department || "Department"}`} />
+      <Navbar title="HOD Dashboard" subtitle={currentSession ? `${currentSession.department} · ${currentSession.academicYear}` : `${user?.department || "Department"}`} />
 
       <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
 
@@ -468,6 +468,11 @@ export default function HODDashboard() {
                   <div>
                     <img src={sigPreview} alt="Signature preview" className="max-h-24 mx-auto object-contain mb-2" />
                     <p className="text-xs text-indigo-600 font-medium">Signature loaded — click to change</p>
+                  </div>
+                ) : user?.signatureImage ? (
+                  <div>
+                    <img src={user.signatureImage} alt="Current Signature" className="max-h-24 mx-auto object-contain mb-2" />
+                    <p className="text-xs text-slate-500 font-medium">Current signature — click to replace</p>
                   </div>
                 ) : (
                   <div>

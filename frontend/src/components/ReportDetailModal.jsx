@@ -342,11 +342,21 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
             </details>
           )}
 
-          {/* Action Taken */}
+          {/* Action Taken by HOD */}
           {report.actionTaken && (
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Action Taken</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Action Taken by HOD</p>
               <p className="text-sm text-slate-700 leading-relaxed">{report.actionTaken}</p>
+            </div>
+          )}
+
+          {/* Faculty Acknowledgment & Action */}
+          {(report.facultyAcknowledged || report.facultyAcknowledgedAt) && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-6">
+              <p className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-2">✅ Faculty Acknowledged</p>
+              {report.facultyAcknowledgedAt && (
+                <p className="text-xs text-emerald-600">On {new Date(report.facultyAcknowledgedAt).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" })}</p>
+              )}
             </div>
           )}
 
