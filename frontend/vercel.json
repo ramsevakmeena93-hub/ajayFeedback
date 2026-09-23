@@ -2,5 +2,9 @@
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "env": {
+    "VITE_API_URL": "https://ajayfeedback-backend.onrender.com",
+    "VITE_GOOGLE_CLIENT_ID": "32902780570-ltgii8ds5cf6pp8elj3uapsao7a78u88.apps.googleusercontent.com"
+  }
 }

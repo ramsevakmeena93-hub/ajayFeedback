@@ -77,8 +77,14 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
 
     try {
       const { data } = await api.post("/api/process/upload-csv", fd);
-      setCsvEntries(data.links || []);
-      toast.success(`${data.total || 0} PDF links found in Excel`);
+      console.log('[BatchModal] upload-csv response:', data);
+      const links = (data.links || []).filter(e => e.pdfLink && e.pdfLink.startsWith('http'));
+      if (links.length === 0 && data.links?.length > 0) {
+        toast.error("Excel parsed but no valid http links found. Check your file.");
+        setExcelFile(null); setCsvEntries([]); return;
+      }
+      setCsvEntries(links);
+      toast.success(`${links.length} PDF links found in Excel`);
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to parse Excel file");
       setExcelFile(null);
@@ -112,6 +118,11 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
 
     for (let i = 0; i < totalLinks; i++) {
       const entry = csvEntries[i];
+      if (!entry.pdfLink || !entry.pdfLink.startsWith('http')) {
+        allErrors.push({ sno: i + 1, error: `Invalid link: "${entry.pdfLink}"` });
+        completedCount++;
+        continue;
+      }
       setCurrentAction(`Analyzing PDF ${i + 1} of ${totalLinks}...`);
 
       try {
