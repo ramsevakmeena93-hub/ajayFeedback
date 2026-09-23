@@ -29,7 +29,6 @@ export default function PDFUploadModal({ token, onClose, onUploaded }) {
       semester: '',
       driveLink: '',
       scanned: false,
-      scanning: true
     }));
 
     setFiles(prev => {
@@ -99,8 +98,8 @@ export default function PDFUploadModal({ token, onClose, onUploaded }) {
     const formData = new FormData();
     files.forEach(entry => formData.append('pdfs', entry.file));
 
-    const metadata = files.map(({ facultyName, subjectCode, programme, semester, driveLink }) => ({
-      facultyName, subjectCode, programme, semester, driveLink: driveLink || ''
+    const metadata = files.map(({ facultyName, subjectCode, programme, semester }) => ({
+      facultyName, subjectCode, programme, semester
     }));
     formData.append('metadata', JSON.stringify(metadata));
 
@@ -222,7 +221,6 @@ export default function PDFUploadModal({ token, onClose, onUploaded }) {
                       { label: 'Subject Code', field: 'subjectCode', placeholder: 'CS101' },
                       { label: 'Programme', field: 'programme', placeholder: 'B.Tech CSE' },
                       { label: 'Semester', field: 'semester', placeholder: '3' },
-                      { label: 'Google Drive Link (for viewing)', field: 'driveLink', placeholder: 'https://drive.google.com/file/d/...' }
                     ].map(({ label, field, placeholder }) => (
                       <div key={field}>
                         <label className="text-xs text-gray-500 mb-1 block">{label}</label>

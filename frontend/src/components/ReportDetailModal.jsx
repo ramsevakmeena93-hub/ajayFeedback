@@ -28,20 +28,9 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
 
     const url = getPdfUrl(report);
 
-    // Google Drive or any external cloud URL — open directly in new tab
-    if (
-      url.startsWith('https://drive.google.com') ||
-      url.startsWith('https://storage.googleapis.com') ||
-      url.startsWith('https://drive.google.com/file/d/')
-    ) {
+    // External cloud URL — open directly in new tab
+    if (url.startsWith('https://') && !url.startsWith(API_BASE)) {
       window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    // Also check report fields directly for Drive links
-    const driveLink = report.driveLink || report.pdfLink || '';
-    if (driveLink.includes('drive.google.com') || driveLink.includes('storage.googleapis.com')) {
-      window.open(driveLink, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -191,7 +180,7 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
                 </div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">PDF</p>
               </div>
-              {(report._id || report.driveLink) ? (
+              {report._id ? (
                 <button
                   onClick={handleViewPDF}
                   disabled={pdfLoading}
