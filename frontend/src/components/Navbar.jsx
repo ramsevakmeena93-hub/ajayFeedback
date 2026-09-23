@@ -161,7 +161,7 @@ export default function Navbar({ title, subtitle }) {
       const res = await api().post("/api/workspace/switch", { workspace: targetWS });
       if (res.data.token && res.data.user) {
         login(res.data.user, res.data.token);
-        toast.success(`Switched to ${targetWS === 'faculty' ? 'Faculty (My Teaching)' : 'HOD (Department Overview)'}`);
+        toast.success(`Switched to ${targetWS === 'faculty' ? 'Faculty View' : 'HOD View'}`);
         navigate(targetWS === 'faculty' ? '/faculty' : '/hod');
       }
     } catch (err) {
@@ -243,8 +243,7 @@ export default function Navbar({ title, subtitle }) {
                 ) : (
                   <>
                     <GraduationCap size={15} className="text-emerald-200" />
-                    <span>My Teaching</span>
-                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold tracking-wide">Faculty View</span>
+                    <span>Faculty View</span>
                   </>
                 )}
               </button>

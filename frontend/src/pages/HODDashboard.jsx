@@ -45,7 +45,7 @@ export default function HODDashboard() {
 
   // Signature modal
   const [showSigModal, setShowSigModal] = useState(false);
-  const [sigPreview, setSigPreview] = useState(user?.signatureImage || null);
+  const [sigPreview, setSigPreview] = useState(null); // only new upload preview
   const [sigSaving, setSigSaving] = useState(false);
 
   // PDF preview (before VC)
@@ -216,6 +216,7 @@ export default function HODDashboard() {
       const res = await api.post("/api/auth/signature", { signatureImage: sigPreview });
       if (res.data.user) updateUser(res.data.user);
       toast.success("Signature saved successfully");
+      setSigPreview(null);
       setShowSigModal(false);
     } catch { toast.error("Failed to save signature"); }
     finally { setSigSaving(false); }
@@ -488,7 +489,7 @@ export default function HODDashboard() {
               </p>
             </div>
             <div className="px-6 py-4 border-t bg-slate-50 flex gap-3 justify-end">
-              <button onClick={() => setShowSigModal(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={() => { setSigPreview(null); setShowSigModal(false); }} className="btn btn-secondary">Cancel</button>
               <button onClick={handleSigSave} disabled={!sigPreview || sigSaving}
                 className="btn btn-primary flex items-center gap-2 disabled:opacity-50">
                 <PenLine size={14} />
