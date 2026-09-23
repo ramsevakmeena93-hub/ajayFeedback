@@ -34,6 +34,7 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
   const [csvEntries, setCsvEntries] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [singleLink, setSingleLink] = useState('');
 
   const [progress, setProgress] = useState(0);
   const [currentAction, setCurrentAction] = useState("");
@@ -92,6 +93,16 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
     } finally {
       setParsing(false);
     }
+  }
+
+  function handleAddSingleLink() {
+    const url = singleLink.trim();
+    if (!url) return;
+    if (!url.startsWith('http')) { toast.error('Please enter a valid http/https URL'); return; }
+    if (csvEntries.some(e => e.pdfLink === url)) { toast.error('This link is already added'); return; }
+    setCsvEntries(prev => [...prev, { pdfLink: url, facultyName: '', subjectCode: '', responseCount: null, _single: true }]);
+    setSingleLink('');
+    toast.success('Link added');
   }
 
   function onDrop(e) {
@@ -301,6 +312,50 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
                   <p className="text-sm text-amber-700">No PDF links found in this Excel file. Please check your file format.</p>
                 </div>
               )}
+
+              {/* ── OR divider ── */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">or add single link</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+
+              {/* ── Single Link Input ── */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-slate-600">Paste a single PDF / Google Drive link</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="input flex-1 text-sm"
+                    placeholder="https://drive.google.com/open?id=..."
+                    value={singleLink}
+                    onChange={e => setSingleLink(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddSingleLink(); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddSingleLink}
+                    disabled={!singleLink.trim()}
+                    className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-xl hover:bg-indigo-700 transition font-medium disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
+                {/* Show added single links */}
+                {csvEntries.filter(e => e._single).length > 0 && (
+                  <div className="space-y-1.5">
+                    {csvEntries.filter(e => e._single).map((e, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-white border border-indigo-100 rounded-xl px-3 py-2">
+                        <span className="text-xs text-indigo-700 truncate flex-1">{e.pdfLink}</span>
+                        <button onClick={() => setCsvEntries(prev => prev.filter(x => x.pdfLink !== e.pdfLink))}
+                          className="text-rose-400 hover:text-rose-600 shrink-0">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -434,11 +489,11 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
               <button onClick={() => setStep(1)} className="btn btn-secondary">Back</button>
               <button
                 onClick={startProcessing}
-                disabled={!excelFile || csvEntries.length === 0 || parsing}
+                disabled={csvEntries.length === 0 || parsing}
                 className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
               >
                 <Sparkles size={15} />
-                Start AI Analysis ({csvEntries.length} PDFs)
+                Start AI Analysis ({csvEntries.length} PDF{csvEntries.length !== 1 ? 's' : ''})
               </button>
             </>
           )}
