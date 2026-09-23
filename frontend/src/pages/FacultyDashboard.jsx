@@ -96,7 +96,7 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
                   <span className="text-xs font-semibold text-amber-700">🟡 Comments Needing Attention</span>
                   <span className="badge-yellow">{report?.commentsNeedingAttention?.length || 0}</span>
                 </div>
-                <div className="p-3 space-y-1.5 max-h-48 overflow-y-auto">
+                <div className="p-3 space-y-1.5">
                   {!report?.commentsNeedingAttention?.length ? (
                     <p className="text-xs text-slate-400 italic">None found</p>
                   ) : report.commentsNeedingAttention.map((t, i) => (
@@ -108,38 +108,28 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
               </div>
 
               {/* Appreciation */}
-              <div className="rounded-xl border border-red-200 overflow-hidden">
-                <div className="bg-red-50 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-red-700">🔴 Appreciation</span>
-                  <span className="badge-red">{report?.appreciation?.length || 0}</span>
+              <div className="rounded-xl border border-emerald-200 overflow-hidden">
+                <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-700">✅ Appreciation</span>
+                  <span className="badge-green">{report?.appreciation?.length || 0}</span>
                 </div>
-                <div className="p-3 space-y-1.5 max-h-48 overflow-y-auto">
+                <div className="p-3 space-y-1.5">
                   {!report?.appreciation?.length ? (
                     <p className="text-xs text-slate-400 italic">None found</p>
                   ) : report.appreciation.map((t, i) => (
-                    <div key={i} className="flex gap-2 text-xs text-slate-700 bg-red-50 border border-red-100 rounded px-2 py-1.5">
-                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>{t}
+                    <div key={i} className="flex gap-2 text-xs text-slate-700 bg-emerald-50 border border-emerald-100 rounded px-2 py-1.5">
+                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>{t}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* HOD Remarks & Action Taken */}
-            {(report?.hodRemarks || report?.actionTaken) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {report?.hodRemarks && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-blue-700 mb-1">HOD Remarks</p>
-                    <p className="text-xs text-slate-700">{report.hodRemarks}</p>
-                  </div>
-                )}
-                {report?.actionTaken && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-green-700 mb-1">Action Taken</p>
-                    <p className="text-xs text-slate-700">{report.actionTaken}</p>
-                  </div>
-                )}
+            {/* Action Taken by HOD — always show if exists */}
+            {report?.actionTaken && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+                <p className="text-xs font-bold text-indigo-700 mb-1.5 uppercase tracking-wide">✍️ Action Taken by HOD</p>
+                <p className="text-sm text-slate-800 leading-relaxed">{report.actionTaken}</p>
               </div>
             )}
           </div>
