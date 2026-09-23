@@ -192,7 +192,7 @@ export default function SubmissionDetail() {
                     <th className="px-4 py-3 text-left">S.No</th>
                     <th className="px-4 py-3 text-left">Faculty Name</th>
                     <th className="px-4 py-3 text-left">Subject Code</th>
-                    <th className="px-4 py-3 text-left">Programme</th>
+                    <th className="px-4 py-3 text-left">Course Name</th>
                     <th className="px-4 py-3 text-center">Sem</th>
                     <th className="px-4 py-3 text-center">Year</th>
                     <th className="px-4 py-3 text-center">FFI</th>
@@ -232,7 +232,7 @@ export default function SubmissionDetail() {
                             : <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="text-xs font-semibold text-slate-600">{r.responseCount ?? r.totalResponses ?? "—"}</span>
+                          <span className="text-xs font-semibold text-slate-600">{r.responsePercent != null ? `${Number(r.responsePercent).toFixed(2)}%` : (r.responseCount ?? r.totalResponses ?? "—")}</span>
                         </td>
                         {/* Appreciation — percentages + long comments */}
                         <td className="px-4 py-3 max-w-[160px]">

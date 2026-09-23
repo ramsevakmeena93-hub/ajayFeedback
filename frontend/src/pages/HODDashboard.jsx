@@ -425,14 +425,9 @@ export default function HODDashboard() {
                     </button>
                   )}
                   {reports.length > 0 && (
-                    <>
-                      <button onClick={handleExportCSV} className="btn btn-secondary btn-sm text-emerald-700">
-                        <Download size={14} /> Export CSV
-                      </button>
                       <button onClick={handleExportPDF} disabled={exportingPDF} className="btn btn-secondary btn-sm text-violet-700">
                         <FileText size={14} /> {exportingPDF ? "Generating..." : "Export PDF"}
                       </button>
-                    </>
                   )}
                   <button onClick={handleSendToVC} disabled={selected.length === 0} className="btn btn-success btn-sm">
                     <Send size={14} /> Send to VC {selected.length > 0 && `(${selected.length})`}

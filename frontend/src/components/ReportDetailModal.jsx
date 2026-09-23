@@ -12,13 +12,25 @@ const STATUS_CFG = {
   faculty_approved: { color:"bg-emerald-100 text-emerald-700 border-emerald-200", icon:CheckCircle2, label:"Faculty Approved" },
 };
 
-export default function ReportDetailModal({ report, onClose, onApprove, onSendToFaculty, onHODApprove }) {
-  if (!report) return null;
+export default function ReportDetailModal({ report: initialReport, onClose, onApprove, onSendToFaculty, onHODApprove, onFieldEdit }) {
+  if (!initialReport) return null;
 
+  const [report, setReport] = useState(initialReport);
   const [showApproveForm, setShowApproveForm] = useState(false);
   const [approvalReason, setApprovalReason] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [editingApp, setEditingApp] = useState(false);
+  const [editingAtt, setEditingAtt] = useState(false);
+  const [appDraft, setAppDraft] = useState((initialReport.appreciation||[]).join('\n'));
+  const [attDraft, setAttDraft] = useState((initialReport.commentsNeedingAttention||[]).join('\n'));
+
+  async function saveComments(field, draft, setEditing) {
+    const list = draft.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (onFieldEdit) await onFieldEdit(report._id, field, list);
+    setReport(prev => ({ ...prev, [field]: list }));
+    setEditing(false);
+  }
 
   // Download PDF using an authenticated fetch so the JWT is sent properly.
   // A plain <a href> would open in a new tab with no Authorization header,
@@ -108,6 +120,7 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
             <div>
               <h2 className="text-xl font-bold text-slate-900">{report.facultyName || "—"}</h2>
               <p className="text-sm text-slate-500">{report.subjectCode || "—"} · {report.programme || "—"} · Sem {report.semester || "—"}</p>
+              {/* note: "programme" DB field now labelled "Course Name" in UI */}
             </div>
           </div>
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-200 text-slate-500 transition-colors">
@@ -161,7 +174,7 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
               <div className="space-y-1.5 mt-2">
                 {[
                   ["Subject Code", report.subjectCode],
-                  ["Programme",   report.programme],
+                  ["Course Name",  report.programme],
                   ["Semester",    report.semester ? `Sem ${report.semester}` : "—"],
                 ].map(([l,v]) => (
                   <div key={l} className="flex items-center justify-between text-xs">
@@ -235,48 +248,80 @@ export default function ReportDetailModal({ report, onClose, onApprove, onSendTo
             </div>
           )}
 
-          {/* Comments Analysis — Separate Sections */}
+          {/* Comments Analysis — Editable Sections */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            {/* Appreciation (Good Comments) */}
-            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30 px-4 py-3 flex items-center justify-between">
+            {/* Appreciation */}
+            <div className="rounded-2xl border border-emerald-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ThumbsUp size={14} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Appreciation</span>
+                  <ThumbsUp size={14} className="text-emerald-600" />
+                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Appreciation</span>
                 </div>
-                <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-lg">{appComments.length}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg">{(report.appreciation||[]).length}</span>
+                  {onFieldEdit && !editingApp && (
+                    <button onClick={() => { setAppDraft((report.appreciation||[]).join('\n')); setEditingApp(true); }}
+                      className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold px-2 py-0.5 rounded hover:bg-emerald-100 transition">Edit</button>
+                  )}
+                </div>
               </div>
-              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                {appComments.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-2 text-center">No appreciation comments</p>
-                ) : appComments.map((t, i) => (
-                  <div key={i} className="flex gap-2 text-xs text-slate-700 dark:text-slate-300 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg px-3 py-2 leading-snug">
-                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                    <span>{t}</span>
+              {editingApp ? (
+                <div className="p-3 space-y-2">
+                  <textarea autoFocus className="w-full border rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" rows={6}
+                    placeholder="One comment per line..." value={appDraft} onChange={e=>setAppDraft(e.target.value)} />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={()=>setEditingApp(false)} className="btn btn-ghost btn-sm text-xs">Cancel</button>
+                    <button onClick={()=>saveComments('appreciation',appDraft,setEditingApp)} className="btn btn-success btn-sm text-xs">Save</button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                  {(report.appreciation||[]).length === 0
+                    ? <p className="text-xs text-slate-400 italic py-2 text-center">No appreciation comments</p>
+                    : (report.appreciation||[]).map((t,i) => (
+                      <div key={i} className="flex gap-2 text-xs text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-snug">
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span><span>{t}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
 
-            {/* Needs Attention (Bad Comments) */}
-            <div className="rounded-2xl border border-amber-200 dark:border-amber-800 overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 px-4 py-3 flex items-center justify-between">
+            {/* Needs Attention */}
+            <div className="rounded-2xl border border-amber-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Needs Attention</span>
+                  <AlertTriangle size={14} className="text-amber-600" />
+                  <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Needs Attention</span>
                 </div>
-                <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-lg">{attComments.length}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">{(report.commentsNeedingAttention||[]).length}</span>
+                  {onFieldEdit && !editingAtt && (
+                    <button onClick={() => { setAttDraft((report.commentsNeedingAttention||[]).join('\n')); setEditingAtt(true); }}
+                      className="text-xs text-amber-600 hover:text-amber-800 font-semibold px-2 py-0.5 rounded hover:bg-amber-100 transition">Edit</button>
+                  )}
+                </div>
               </div>
-              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                {attComments.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic py-2 text-center">No concerns raised</p>
-                ) : attComments.map((t, i) => (
-                  <div key={i} className="flex gap-2 text-xs text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900 rounded-lg px-3 py-2 leading-snug">
-                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
-                    <span>{t}</span>
+              {editingAtt ? (
+                <div className="p-3 space-y-2">
+                  <textarea autoFocus className="w-full border rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" rows={6}
+                    placeholder="One comment per line..." value={attDraft} onChange={e=>setAttDraft(e.target.value)} />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={()=>setEditingAtt(false)} className="btn btn-ghost btn-sm text-xs">Cancel</button>
+                    <button onClick={()=>saveComments('commentsNeedingAttention',attDraft,setEditingAtt)} className="btn btn-success btn-sm text-xs">Save</button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                  {(report.commentsNeedingAttention||[]).length === 0
+                    ? <p className="text-xs text-slate-400 italic py-2 text-center">No concerns raised</p>
+                    : (report.commentsNeedingAttention||[]).map((t,i) => (
+                      <div key={i} className="flex gap-2 text-xs text-slate-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-snug">
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span><span>{t}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           </div>
 

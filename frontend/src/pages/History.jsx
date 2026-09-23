@@ -229,7 +229,7 @@ function SubmissionCard({ sub, token, onViewReport, filterFaculty }) {
                         <tr>
                           {user?.role !== "faculty" && <th className="px-4 py-3">Faculty Member</th>}
                           <th className="px-4 py-3">Subject Code</th>
-                          <th className="px-4 py-3">Programme</th>
+                          <th className="px-4 py-3">Course Name</th>
                           <th className="px-4 py-3 text-center">FFI Score</th>
                           <th className="px-4 py-3 text-center">Resp.</th>
                           <th className="px-4 py-3 text-left">AI Analysis</th>
@@ -252,7 +252,7 @@ function SubmissionCard({ sub, token, onViewReport, filterFaculty }) {
                               ) : "—"}
                             </td>
                             <td className="px-4 py-3 text-center font-bold text-slate-500 text-xs">
-                              {r.responseCount ?? r.totalResponses ?? "—"}
+                              {r.responsePercent != null ? `${Number(r.responsePercent).toFixed(2)}%` : (r.responseCount ?? r.totalResponses ?? "—")}
                             </td>
                             <td className="px-4 py-3 min-w-[200px] max-w-[300px]">
                               <div className="space-y-3">

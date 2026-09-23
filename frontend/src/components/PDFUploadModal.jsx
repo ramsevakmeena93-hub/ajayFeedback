@@ -208,7 +208,7 @@ export default function PDFUploadModal({ token, onClose, onUploaded }) {
                   <div className="px-4 py-2 bg-white border-t flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
                     <span><span className="text-gray-400">Faculty:</span> {entry.facultyName || <em className="text-gray-300">not found</em>}</span>
                     <span><span className="text-gray-400">Code:</span> {entry.subjectCode || <em className="text-gray-300">not found</em>}</span>
-                    <span><span className="text-gray-400">Programme:</span> {entry.programme || <em className="text-gray-300">not found</em>}</span>
+                    <span><span className="text-gray-400">Course Name:</span> {entry.programme || <em className="text-gray-300">not found</em>}</span>
                     <span><span className="text-gray-400">Sem:</span> {entry.semester || <em className="text-gray-300">not found</em>}</span>
                   </div>
                 )}
@@ -219,7 +219,7 @@ export default function PDFUploadModal({ token, onClose, onUploaded }) {
                     {[
                       { label: 'Faculty Name', field: 'facultyName', placeholder: 'Dr. John Smith' },
                       { label: 'Subject Code', field: 'subjectCode', placeholder: 'CS101' },
-                      { label: 'Programme', field: 'programme', placeholder: 'B.Tech CSE' },
+                      { label: 'Course Name', field: 'programme', placeholder: 'B.Tech CSE' },
                       { label: 'Semester', field: 'semester', placeholder: '3' },
                     ].map(({ label, field, placeholder }) => (
                       <div key={field}>

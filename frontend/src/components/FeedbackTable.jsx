@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Search, Eye, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Eye, Trash2, Pencil, X as XIcon, Check } from "lucide-react";
 import ReportDetailModal from "./ReportDetailModal";
 
 const STATUS_CFG = {
@@ -36,6 +36,44 @@ function CommentList({ items, color, commentPercentages }) {
       {items.map((t,i) => (
         <div key={i} className="text-xs bg-amber-50 border border-amber-100 text-amber-800 rounded-lg px-2 py-1 leading-snug">{t}</div>
       ))}
+    </div>
+  );
+}
+
+function EditableComments({ reportId, field, items, color, commentPercentages, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState((items || []).join('\n'));
+  function save() {
+    const list = val.split('\n').map(s => s.trim()).filter(Boolean);
+    onSave && onSave(reportId, field, list);
+    setEditing(false);
+  }
+  const isAtt = color === "red";
+  const bg = isAtt ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100";
+  if (editing) return (
+    <div className="flex flex-col gap-1 min-w-[160px]">
+      <textarea autoFocus rows={4} className="input text-xs resize-none py-1 w-full"
+        value={val} onChange={e => setVal(e.target.value)} placeholder="One comment per line..." />
+      <div className="flex gap-1">
+        <button onClick={save} className="btn btn-success btn-sm text-xs py-0.5">✓ Save</button>
+        <button onClick={() => setEditing(false)} className="btn btn-ghost btn-sm text-xs py-0.5">✕</button>
+      </div>
+    </div>
+  );
+  const display = items && items.length > 0 ? items : null;
+  const pcts = !isAtt && commentPercentages ? Object.entries(commentPercentages).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]) : [];
+  return (
+    <div className="group relative cursor-pointer" onClick={() => { setVal((items||[]).join('\n')); setEditing(true); }}>
+      <div className="flex flex-col gap-1">
+        {!isAtt && pcts.map(([k,v],i) => (
+          <div key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-2 py-0.5 text-xs font-medium">{k}: {v}%</div>
+        ))}
+        {display ? display.slice(0,2).map((c,i) => (
+          <div key={i} className={`border rounded px-2 py-0.5 text-xs leading-snug ${bg}`}>{c}</div>
+        )) : <span className="text-slate-300 italic text-xs">-</span>}
+        {display && display.length > 2 && <span className="text-xs text-slate-400">+{display.length-2} more</span>}
+      </div>
+      <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition"><Pencil size={10} className="text-slate-400"/></span>
     </div>
   );
 }
@@ -158,7 +196,7 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
               <th className="px-3 py-3 text-left">S.No</th>
               <th className="px-3 py-3 text-left">Faculty Name</th>
               <th className="px-3 py-3 text-left">Subject Code</th>
-              <th className="px-3 py-3 text-left">Programme</th>
+              <th className="px-3 py-3 text-left">Course Name</th>
               <th className="px-3 py-3 text-center">Sem</th>
               <th className="px-3 py-3 text-center">FFI</th>
               <th className="px-3 py-3 text-center">Resp. %</th>
@@ -198,45 +236,27 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span className="text-xs font-semibold text-slate-500">
-                      {report.responseCount != null ? String(report.responseCount) : (report.totalResponses != null ? String(report.totalResponses) : "-")}
+                      {report.responsePercent != null ? `${Number(report.responsePercent).toFixed(2)}%` : (report.responseCount != null ? String(report.responseCount) : "-")}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-xs max-w-[200px] whitespace-normal">
-                    <div className="flex flex-col gap-1.5">
-                      {report.commentsNeedingAttention && report.commentsNeedingAttention.length > 0 ? (
-                        report.commentsNeedingAttention.map((c, i) => (
-                          <div key={i} className="bg-red-50 text-red-700 border border-red-100 rounded px-2 py-1 leading-snug">
-                            {c}
-                          </div>
-                        ))
-                      ) : <span className="text-slate-300 italic">-</span>}
-                    </div>
+                    <EditableComments
+                      reportId={report._id}
+                      field="commentsNeedingAttention"
+                      items={report.commentsNeedingAttention}
+                      color="red"
+                      onSave={onFieldEdit}
+                    />
                   </td>
                   <td className="px-3 py-3 text-xs max-w-[200px] whitespace-normal">
-                    <div className="flex flex-col gap-1.5">
-                      {(() => {
-                        const pcts = report.commentPercentages || {};
-                        const pctLines = Object.entries(pcts)
-                          .filter(([, v]) => v > 0)
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([k, v], i) => (
-                            <div key={'pct'+i} className="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1 leading-snug font-medium">
-                              {k}: {v}%
-                            </div>
-                          ));
-                        
-                        const longAppreciations = (report.appreciation || [])
-                          .filter(c => c.trim().split(/\s+/).length > 4)
-                          .map((c, i) => (
-                            <div key={'app'+i} className="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1 leading-snug">
-                              {c}
-                            </div>
-                          ));
-                        
-                        const allBoxes = [...pctLines, ...longAppreciations];
-                        return allBoxes.length > 0 ? allBoxes : <span className="text-slate-300 italic">-</span>;
-                      })()}
-                    </div>
+                    <EditableComments
+                      reportId={report._id}
+                      field="appreciation"
+                      items={report.appreciation}
+                      color="green"
+                      commentPercentages={report.commentPercentages}
+                      onSave={onFieldEdit}
+                    />
                   </td>
                   <td className="px-3 py-3"><ActionTakenCell reportId={report._id} value={report.actionTaken} onSave={onFieldEdit} /></td>
                   <td className="px-3 py-3">
@@ -329,6 +349,7 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
           onClose={() => setViewReport(null)}
           onSendToFaculty={onSendToFaculty ? (id) => { onSendToFaculty(id); } : null}
           onHODApprove={onHODApprove ? (id, reason) => { onHODApprove(id, reason); } : null}
+          onFieldEdit={onFieldEdit}
         />
       )}
     </div>

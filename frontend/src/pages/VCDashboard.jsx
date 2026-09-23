@@ -397,7 +397,7 @@ export default function VCDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="table-header">
-                    <tr>{["Subject Code","Faculty","Programme","Sections","Avg FFI"].map(h=>(
+                    <tr>{["Subject Code","Faculty","Course Name","Sections","Avg FFI"].map(h=>(
                       <th key={h} className="px-4 py-3 text-left">{h}</th>
                     ))}</tr>
                   </thead>

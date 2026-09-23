@@ -651,7 +651,7 @@ export default function FacultyDashboard() {
                           <tr>
                             <th className="px-4 py-3 text-left">Faculty Name</th>
                             <th className="px-4 py-3 text-left">Subject Code</th>
-                            <th className="px-4 py-3 text-left">Programme</th>
+                            <th className="px-4 py-3 text-left">Course Name</th>
                             <th className="px-4 py-3 text-center">Sem</th>
                             <th className="px-4 py-3 text-center">Year</th>
                             <th className="px-4 py-3 text-center">FFI</th>
@@ -690,7 +690,7 @@ export default function FacultyDashboard() {
                                     : <span className="text-slate-300">—</span>}
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                  <span className="text-xs font-semibold text-slate-600">{report.responseCount ?? report.totalResponses ?? '—'}</span>
+                                  <span className="text-xs font-semibold text-slate-600">{report.responsePercent != null ? `${Number(report.responsePercent).toFixed(2)}%` : (report.responseCount ?? report.totalResponses ?? '—')}</span>
                                 </td>
                                 <td className="px-4 py-3 max-w-[160px]">
                                   <div className="space-y-0.5">
