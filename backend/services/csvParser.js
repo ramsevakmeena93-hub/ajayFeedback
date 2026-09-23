@@ -36,7 +36,7 @@ function parseCSV(buffer) {
 
           rowHasContent = true;
           const val = cell.w !== undefined ? String(cell.w).trim() : cell.v !== undefined ? String(cell.v).trim() : '';
-          let link = (cell.l && cell.l.Target) ? String(cell.l.Target).trim() : '';
+          let link = (cell.l && cell.l.Target) ? String(cell.l.Target).trim().replace(/&amp;/g, '&') : '';
           const formula = cell.f ? String(cell.f).trim() : '';
 
           // If formula is =HYPERLINK("url", ...), extract url
@@ -91,11 +91,16 @@ function parseCSV(buffer) {
     for (let r = 0; r < Math.min(rows.length, 15); r++) {
       const row = rows[r];
       const texts = row.map(c => c.val.toLowerCase());
+      const rowStr = texts.join(' ');
 
-      const isHeader = texts.some(t => 
+      // Skip rows that actually contain URLs — those are data rows
+      const hasUrl = row.some(c => /https?:\/\//i.test(c.val) || (c.link && c.link.startsWith('http')));
+      if (hasUrl) continue;
+
+      const isHeader = texts.some(t =>
         t.includes('faculty') || t.includes('teacher') || t.includes('instructor') ||
-        t.includes('link') || t.includes('drive') || t.includes('url') || 
-        t.includes('course') || t.includes('subject')
+        t.includes('link') || t.includes('url') ||
+        t.includes('course') || t.includes('subject') || t.includes('name')
       );
 
       if (isHeader) {
@@ -127,90 +132,55 @@ function parseCSV(buffer) {
 
     for (let r = startRow; r < rows.length; r++) {
       const row = rows[r];
-      let foundUrl = '';
 
-      // Check designated link column
-      if (colMap.link !== -1 && row[colMap.link]) {
-        const c = row[colMap.link];
+      // Collect ALL urls from this row — a cell may contain multiple concatenated URLs
+      const allUrlsInRow = [];
+
+      // First check cell hyperlink targets
+      for (const c of row) {
         if (c.link && c.link.startsWith('http')) {
-          foundUrl = c.link;
-        } else if (c.val) {
-          const m = c.val.match(/https?:\/\/[^\s"',;<>]+/i);
-          if (m) foundUrl = m[0];
+          allUrlsInRow.push(c.link.trim());
         }
       }
 
-      // Scan row for cell hyperlink target
-      if (!foundUrl) {
-        for (const c of row) {
-          if (c.link && c.link.startsWith('http')) {
-            foundUrl = c.link;
-            break;
-          }
-        }
+      // Then scan all cell text values — extract every https?:// occurrence
+      const fullRowStr = row.map(c => c.val).join(' ');
+      const urlRegex = /https?:\/\/[^\s"',;<>\]]+/gi;
+      let m;
+      while ((m = urlRegex.exec(fullRowStr)) !== null) {
+        const url = m[0].replace(/[.,;)&]+$/, ''); // strip trailing junk
+        if (!allUrlsInRow.includes(url)) allUrlsInRow.push(url);
       }
 
-      // Scan row for Drive or HTTP string
-      if (!foundUrl) {
-        const fullRowStr = row.map(c => c.val).join(' ');
-        const driveM = fullRowStr.match(/https?:\/\/(?:drive\.google\.com|docs\.google\.com)[^\s"',;<>]+/i);
-        if (driveM) {
-          foundUrl = driveM[0];
-        } else {
-          const httpM = fullRowStr.match(/https?:\/\/[^\s"',;<>]+/i);
-          if (httpM) foundUrl = httpM[0];
-        }
-      }
+      if (allUrlsInRow.length === 0) continue;
 
-      if (!foundUrl) continue;
-
-      // Clean up URL
-      foundUrl = foundUrl.replace(/[.,;)]+$/, '');
-      if (seenUrls.has(foundUrl)) continue;
-      seenUrls.add(foundUrl);
-
-      // Extract metadata
+      // Extract facultyName from first non-URL text cell (usually col A = filename)
       let facultyName = '';
-      if (colMap.faculty !== -1 && row[colMap.faculty]) {
-        facultyName = row[colMap.faculty].val.trim();
+      for (const c of row) {
+        const v = c.val.trim();
+        if (v && !v.startsWith('http') && v.length > 2) {
+          // Strip .pdf extension to get a clean name
+          facultyName = v.replace(/\.pdf$/i, '').trim();
+          break;
+        }
       }
 
       let subjectCode = '';
-      if (colMap.subjectCode !== -1 && row[colMap.subjectCode]) {
-        subjectCode = row[colMap.subjectCode].val.trim();
-      }
+      if (colMap.subjectCode !== -1 && row[colMap.subjectCode]) subjectCode = row[colMap.subjectCode].val.trim();
 
       let courseName = '';
-      if (colMap.courseName !== -1 && row[colMap.courseName]) {
-        courseName = row[colMap.courseName].val.trim();
-      }
+      if (colMap.courseName !== -1 && row[colMap.courseName]) courseName = row[colMap.courseName].val.trim();
 
       let programme = '';
-      if (colMap.programme !== -1 && row[colMap.programme]) {
-        programme = row[colMap.programme].val.trim();
-      }
+      if (colMap.programme !== -1 && row[colMap.programme]) programme = row[colMap.programme].val.trim();
 
       let semester = '';
-      if (colMap.semester !== -1 && row[colMap.semester]) {
-        semester = row[colMap.semester].val.trim();
-      }
+      if (colMap.semester !== -1 && row[colMap.semester]) semester = row[colMap.semester].val.trim();
 
       let responseCount = null;
       if (colMap.resp !== -1 && row[colMap.resp]) {
         const v = parseInt(row[colMap.resp].val.replace(/[^\d]/g, ''), 10);
         if (!isNaN(v) && v > 0) responseCount = v;
-      }
-      // Fallback response count in adjacent cells
-      if (responseCount === null) {
-        for (const c of row) {
-          if (/^\d{1,4}$/.test(c.val.trim())) {
-            const v = parseInt(c.val.trim(), 10);
-            if (v > 0 && v < 5000) {
-              responseCount = v;
-              break;
-            }
-          }
-        }
       }
 
       let ffiScore = null;
@@ -219,16 +189,24 @@ function parseCSV(buffer) {
         if (!isNaN(v) && v >= 0 && v <= 5) ffiScore = v;
       }
 
-      results.push({
-        pdfLink: foundUrl,
-        facultyName,
-        subjectCode,
-        courseName,
-        programme,
-        semester,
-        responseCount,
-        ffiScore
-      });
+      // Emit one result per URL found in this row
+      for (const url of allUrlsInRow) {
+        const cleanUrl = url.replace(/&amp;/g, '&').replace(/[.,;)]+$/, '');
+        if (!cleanUrl.startsWith('http')) continue;
+        if (seenUrls.has(cleanUrl)) continue;
+        seenUrls.add(cleanUrl);
+
+        results.push({
+          pdfLink: cleanUrl,
+          facultyName,
+          subjectCode,
+          courseName,
+          programme,
+          semester,
+          responseCount,
+          ffiScore
+        });
+      }
     }
   }
 
