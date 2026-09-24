@@ -93,10 +93,11 @@ export default function VCDashboard() {
   const handleSignatureSaved = async () => {
     setShowSignatureModal(false);
     if (pendingApproveId) {
-      await api.patch(`/api/submissions/${pendingApproveId}/status`, { status: "approved", vcComment: "" });
-      toast.success("Submission VC Approved ✓");
+      // Don't auto-approve — reopen the approve modal so VC can confirm
+      setApproveModal(pendingApproveId);
+      setApproveComment("");
       setPendingApproveId(null);
-      fetchSubmissions();
+      toast.success("Signature saved! Now confirm approval.");
     }
   };
 
@@ -291,6 +292,7 @@ export default function VCDashboard() {
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
           {[
             { id:"submissions", label:"Submissions" },
+            { id:"hod_status",  label:"👥 HOD Status" },
             { id:"analysis",    label:"📊 Analysis" },
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
@@ -299,6 +301,91 @@ export default function VCDashboard() {
             </button>
           ))}
         </div>
+
+        {/* ── HOD STATUS TAB ── */}
+        {activeTab === "hod_status" && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+              <h2 className="font-bold text-slate-800 text-base">HOD Submission Status</h2>
+              <p className="text-xs text-slate-400 mt-0.5">All registered HODs — who submitted, who is pending, who hasn't submitted</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/40">
+                    {["#","HOD Name","Department","Submission Status","Reports","Submitted On","Avg FFI","Action"].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {allHods.map((hod, idx) => {
+                    // Find latest submission for this HOD
+                    const hodSubs = submissions.filter(s => {
+                      const id = s.hodId?._id || s.hodId;
+                      return id?.toString() === hod._id?.toString();
+                    }).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    const latest = hodSubs[0];
+                    const status = latest?.status;
+                    const ffis = (latest?.reports||[]).map(r=>r.ffiScore).filter(Boolean);
+                    const avg = ffis.length ? (ffis.reduce((s,v)=>s+v,0)/ffis.length).toFixed(2) : "—";
+
+                    let badge, dotColor;
+                    if (!latest) {
+                      badge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span>Not Submitted</span>;
+                    } else if (status === "approved") {
+                      badge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200"><span className="w-1.5 h-1.5 rounded-full bg-teal-500 inline-block"></span>VC Approved</span>;
+                    } else if (status === "submitted" || status === "conflict" || status === "escalated") {
+                      badge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>Pending Review</span>;
+                    } else if (status === "rejected") {
+                      badge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200"><span className="w-1.5 h-1.5 rounded-full bg-rose-400 inline-block"></span>Rejected</span>;
+                    } else {
+                      badge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-50 text-slate-500 border border-slate-200"><span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span>{status}</span>;
+                    }
+
+                    return (
+                      <tr key={hod._id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-4 text-slate-400 text-xs">{idx+1}</td>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-slate-800 text-sm">{hod.name}</p>
+                          <p className="text-xs text-slate-400">{hod.email}</p>
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-600">{hod.department || "—"}</td>
+                        <td className="px-5 py-4">{badge}</td>
+                        <td className="px-5 py-4 text-center">
+                          {latest ? (
+                            <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100">
+                              {latest.reports?.length||0}
+                            </span>
+                          ) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
+                          {latest?.createdAt ? new Date(latest.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—"}
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          {avg !== "—" ? (
+                            <span className={`text-sm font-bold ${parseFloat(avg)>=4?"text-teal-600":parseFloat(avg)>=3?"text-amber-600":"text-rose-600"}`}>{avg}</span>
+                          ) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-4">
+                          {latest ? (
+                            <button onClick={() => navigate(`/vc/submission/${latest._id}`)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                              <Eye size={11}/> View
+                            </button>
+                          ) : <span className="text-slate-300 text-xs">No submission</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {allHods.length === 0 && (
+                    <tr><td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm">No HODs registered yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* ── ANALYSIS TAB ── */}
         {activeTab === "analysis" && (
@@ -637,7 +724,7 @@ export default function VCDashboard() {
 
       {/* ── Action Taken Modal ── */}
       {actionModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-7 space-y-5 animate-scale-in">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
