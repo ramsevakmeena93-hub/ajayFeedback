@@ -70,7 +70,7 @@ function EditableComments({ reportId, field, items, color, commentPercentages, o
         ))}
         {display ? display.map((c,i) => (
           <div key={i} className={`border rounded px-2 py-0.5 text-xs leading-snug ${bg}`}>{c}</div>
-        )) : <span className="text-slate-300 italic text-xs">-</span>}
+        )) : <span className="text-slate-400 italic text-xs">No comments</span>}
       </div>
       <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition"><Pencil size={10} className="text-slate-400"/></span>
     </div>

@@ -260,6 +260,11 @@ export default function HODDashboard() {
   const visibleReports = reports.filter(r => {
     if (sessionStartTime) return new Date(r.createdAt).getTime() >= sessionStartTime;
     return !submittedIds.has(String(r._id));
+  }).sort((a, b) => {
+    // Natural sort by subject code (course code)
+    const ca = (a.subjectCode || '').trim();
+    const cb = (b.subjectCode || '').trim();
+    return ca.localeCompare(cb, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const hodStats = [
