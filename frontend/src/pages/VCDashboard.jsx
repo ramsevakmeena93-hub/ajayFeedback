@@ -4,6 +4,17 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import SignatureUpload from '../components/SignatureUpload';
+
+// Auto-number multi-line comments
+function autoNumber(text) {
+  if (!text) return "";
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return text;
+  return lines.map((l, i) => {
+    const clean = l.replace(/^\d+[\.\)]\s*/, "");
+    return `${i + 1}. ${clean}`;
+  }).join("\n");
+}
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import {
@@ -64,7 +75,18 @@ export default function VCDashboard() {
       const { data } = await api.get("/api/admin/users");
       const hods = (data || []).filter(u => u.role === "hod" || (u.roles || []).includes("hod"));
       setAllHods(hods);
-    } catch {}
+    } catch {
+      // Fallback: build HOD list from submissions data (VC always has access to submissions)
+      try {
+        const { data: subs } = await api.get("/api/submissions/all");
+        const hodMap = {};
+        (subs || []).forEach(sub => {
+          const h = sub.hodId;
+          if (h && h._id && !hodMap[h._id]) hodMap[h._id] = h;
+        });
+        setAllHods(Object.values(hodMap));
+      } catch {}
+    }
   }
 
   // ── Approve with optional comment ──────────────────────────────
@@ -120,10 +142,11 @@ export default function VCDashboard() {
     if (!actionModal) return;
     if (!actionComment.trim()) return toast.error("Please enter an action comment");
     setActionSaving(true);
+    const numbered = autoNumber(actionComment);
     try {
       await api.patch(`/api/submissions/${actionModal._id}/status`, {
-        status: actionModal.status, // keep current status
-        vcComment: actionComment,
+        status: actionModal.status,
+        vcComment: numbered,
       });
       toast.success("Action taken comment saved");
       setActionModal(null); setActionComment("");
@@ -559,7 +582,7 @@ export default function VCDashboard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/40">
-                      {["HOD","Department","Reports","Avg FFI","Submitted","Status","VC Comment","Actions"].map(h => (
+                      {["HOD","Department","Session","Reports","Avg FFI","Submitted","Status","VC Comment","Actions"].map(h => (
                         <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
@@ -595,6 +618,12 @@ export default function VCDashboard() {
                           {/* Department */}
                           <td className="px-5 py-4 text-slate-600 text-xs max-w-[150px] truncate">
                             {sub.hodId?.department||sub.department||"—"}
+                          </td>
+
+                          {/* Session */}
+                          <td className="px-5 py-4 text-xs text-slate-600 whitespace-nowrap">
+                            {sub.session === "jan-may" ? "Jan–Jun" : sub.session === "jul-dec" ? "Jul–Dec" : sub.session || "—"}
+                            {sub.academicYear && <span className="block text-slate-400">{sub.academicYear}</span>}
                           </td>
 
                           {/* Reports count */}
@@ -737,10 +766,13 @@ export default function VCDashboard() {
                 </p>
               </div>
             </div>
-            <textarea rows={4}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-              placeholder="Describe the action taken by VC on this submission..."
-              value={actionComment} onChange={e => setActionComment(e.target.value)} />
+            <div>
+              <textarea rows={4}
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                placeholder="Enter each point on a new line — numbering is added automatically..."
+                value={actionComment} onChange={e => setActionComment(e.target.value)} />
+              <p className="text-xs text-slate-400 mt-1">Each line will be auto-numbered when saved.</p>
+            </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setActionModal(null); setActionComment(""); }}
                 className="px-5 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
