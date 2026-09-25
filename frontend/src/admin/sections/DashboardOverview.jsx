@@ -136,56 +136,8 @@ export default function DashboardOverview({ isDark }) {
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900/80 backdrop-blur-md rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center justify-between mb-4">
-            <span className="flex items-center gap-2">
-              <LogIn className="text-indigo-600 dark:text-indigo-400" size={20} /> Latest User Logins & Registrations
-            </span>
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="text-slate-400 dark:text-slate-500 font-semibold border-b border-slate-100 dark:border-slate-800">
-                <tr>
-                  <th className="pb-3">User</th>
-                  <th className="pb-3">Role</th>
-                  <th className="pb-3">Department</th>
-                  <th className="pb-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-                {stats?.recentUsers?.map(u => (
-                  <tr key={u._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-3 font-medium flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs">
-                        {u.name?.charAt(0) || 'U'}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">{u.name}</div>
-                        <div className="text-[10px] text-slate-400">{u.email}</div>
-                      </div>
-                    </td>
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="py-3 text-slate-500 dark:text-slate-400">{u.department || 'Unassigned'}</td>
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
-                        {u.status || 'Active'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {(!stats?.recentUsers || stats.recentUsers.length === 0) && (
-                  <tr>
-                    <td colSpan="4" className="py-6 text-center text-slate-400">No users found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
+
       </div>
     </div>
   );
