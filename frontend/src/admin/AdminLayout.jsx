@@ -55,7 +55,6 @@ export default function AdminLayout() {
 
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'live_analytics', icon: Activity, label: 'Live Analytics' },
     { id: 'users', icon: Users, label: 'User Management' },
     { id: 'google_users', icon: LogOut, label: 'Google OAuth Users' },
     { id: 'faculty', icon: GraduationCap, label: 'Faculty Management' },
@@ -82,7 +81,6 @@ export default function AdminLayout() {
     switch (activeSection) {
       case 'dashboard': return <DashboardOverview {...props} />;
       case 'analytics': return <Analytics {...props} />;
-      case 'live_analytics': return <LiveAnalytics token={token} isDark={isDark} />;
       case 'users': return <UserManagement {...props} />;
       case 'google_users': return <GoogleAuthUsers {...props} />;
       case 'faculty': return <FacultyManagement {...props} />;
