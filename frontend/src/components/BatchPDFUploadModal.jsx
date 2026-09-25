@@ -109,7 +109,7 @@ export default function BatchPDFUploadModal({ user, token, onClose, onSuccess })
   }
 
   async function startProcessing() {
-    if (!excelFile || csvEntries.length === 0) return toast.error("Please upload a valid Excel file first");
+    if (csvEntries.length === 0) return toast.error("Please add at least one PDF link or upload an Excel file first");
 
     setStep(3);
     setProgress(5);
