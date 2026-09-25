@@ -215,7 +215,7 @@ export default function SubmissionDetail() {
                   {uniqueReports.map((r, idx) => {
                     const pcts    = r.commentPercentages || {};
                     const pctList = Object.entries(pcts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-                    const appAll  = r.appreciation || [];
+                    const appAll  = (r.appreciation || []).filter(c => c.trim().split(/\s+/).length >= 6);
                     const attList = r.commentsNeedingAttention || [];
                     return (
                       <tr key={r._id} className="hover:bg-slate-50 align-top transition-colors">

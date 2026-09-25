@@ -268,9 +268,9 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
                 </div>
               </div>
               <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                {(report.appreciation||[]).length === 0
-                  ? <p className="text-xs text-slate-400 italic py-2 text-center">No appreciation comments</p>
-                  : (report.appreciation||[]).map((t,i) => (
+                {(report.appreciation||[]).filter(t => t.trim().split(/\s+/).length >= 6).length === 0
+                  ? <p className="text-xs text-slate-400 italic py-2 text-center">No detailed comments</p>
+                  : (report.appreciation||[]).filter(t => t.trim().split(/\s+/).length >= 6).map((t,i) => (
                     <div key={i} className="flex items-start gap-2 text-sm text-slate-700 leading-relaxed">
                       <span className="mt-1 text-emerald-500 font-bold shrink-0">•</span>
                       <span>{t}</span>

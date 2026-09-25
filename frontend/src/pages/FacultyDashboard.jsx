@@ -108,7 +108,9 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
                   <div className="space-y-1.5">
                     {!report?.appreciation?.length ? (
                       <p className="text-xs text-slate-400 italic pl-3">No comments</p>
-                    ) : report.appreciation.map((t, i) => (
+                    ) : report.appreciation.filter(t => t.trim().split(/\s+/).length >= 6).length === 0 ? (
+                      <p className="text-xs text-slate-400 italic pl-3">No detailed comments</p>
+                    ) : report.appreciation.filter(t => t.trim().split(/\s+/).length >= 6).map((t, i) => (
                       <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
                         <span className="mt-1.5 text-emerald-500 font-bold shrink-0">•</span>
                         <span>{t}</span>

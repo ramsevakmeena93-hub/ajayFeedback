@@ -236,7 +236,7 @@ function SubmissionCard({ sub, token, onViewReport, filterFaculty }) {
                                 {r.appreciation?.length > 0 && (
                                   <div className="space-y-1">
                                     <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Appreciation</p>
-                                    {r.appreciation.map((c,i) => <p key={i} className="text-[10px] text-slate-600 leading-snug">• {c}</p>)}
+                                    {r.appreciation.filter(c => c.trim().split(/\s+/).length >= 6).map((c,i) => <p key={i} className="text-[10px] text-slate-600 leading-snug">• {c}</p>)}
                                   </div>
                                 )}
                                 {r.commentsNeedingAttention?.length > 0 && (

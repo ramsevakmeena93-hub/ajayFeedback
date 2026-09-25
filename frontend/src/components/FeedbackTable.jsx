@@ -58,6 +58,8 @@ function EditableComments({ reportId, field, items, color, commentPercentages, o
   const isAtt = color === "red";
   const display = items && items.length > 0 ? items : null;
   const pcts = !isAtt && commentPercentages ? Object.entries(commentPercentages).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]) : [];
+  // For appreciation: only show comments with 6+ words (meaningful comments only)
+  const displayItems = isAtt ? display : (display ? display.filter(c => c.trim().split(/\s+/).length >= 6) : null);
 
   const headerColor = isAtt
     ? "bg-amber-600 text-white"
@@ -73,12 +75,12 @@ function EditableComments({ reportId, field, items, color, commentPercentages, o
           {!isAtt && pcts.map(([k,v],i) => (
             <div key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-2 py-0.5 text-xs font-medium">{k}: {v}%</div>
           ))}
-          {display ? display.map((c,i) => (
+          {displayItems && displayItems.length > 0 ? displayItems.map((c,i) => (
             <div key={i} className="flex items-start gap-1.5 text-xs leading-snug">
               <span className={`mt-0.5 font-bold shrink-0 ${bulletColor}`}>•</span>
               <span className="text-slate-700">{c}</span>
             </div>
-          )) : <span className="text-slate-400 italic text-xs">No comments</span>}
+          )) : (!isAtt && pcts.length === 0 ? <span className="text-slate-400 italic text-xs">No comments</span> : (isAtt && !display ? <span className="text-slate-400 italic text-xs">No comments</span> : null))}
         </div>
         <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition">
           <Pencil size={10} className="text-slate-400"/>
