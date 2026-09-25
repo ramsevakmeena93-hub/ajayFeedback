@@ -84,8 +84,13 @@ function SubmissionCard({ sub, token, onViewReport, filterFaculty }) {
         : `/api/submissions/${sub._id}/download-pdf`;
       const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
       const res = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const e = await res.json().catch(()=>({error:"Failed"})); toast.error(e.error || "Failed", { id: toastId }); return; }
+      if (!res.ok) {
+        const ct = res.headers.get('content-type') || '';
+        const e = ct.includes('json') ? await res.json().catch(()=>({error:"Failed"})) : { error: `Server error ${res.status}` };
+        toast.error(e.error || "Failed", { id: toastId }); return;
+      }
       const blob = await res.blob();
+      if (blob.size < 100) { toast.error("PDF generation failed — please try again", { id: toastId }); return; }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = buildFilename(sub, semFilter);
