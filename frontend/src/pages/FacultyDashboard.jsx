@@ -686,7 +686,6 @@ export default function FacultyDashboard() {
                             const approved = report.status === 'faculty_approved';
                             const pcts = report.commentPercentages || {};
                             const pctEntries = Object.entries(pcts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-                            const longApp = (report.appreciation||[]).filter(c=>c.trim().split(/\s+/).length>4);
                             return (
                               <tr key={report._id} className={`hover:bg-slate-50 align-top transition-colors ${!approved ? 'bg-amber-50/30' : ''}`}>
                                 <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
@@ -710,21 +709,26 @@ export default function FacultyDashboard() {
                                 <td className="px-4 py-3 text-center">
                                   <span className="text-xs font-semibold text-slate-600">{report.responsePercent != null ? `${Number(report.responsePercent).toFixed(2)}%` : (report.responseCount ?? report.totalResponses ?? '—')}</span>
                                 </td>
-                                <td className="px-4 py-3 max-w-[160px]">
+                                <td className="px-4 py-3 max-w-[200px]">
                                   <div className="space-y-0.5">
                                     {pctEntries.map(([label,pct])=>(
-                                      <span key={label} className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded px-1.5 py-0.5 inline-block mr-1">{label} {pct}%</span>
+                                      <span key={label} className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded px-1.5 py-0.5 inline-block mr-1 mb-0.5">{label} {pct}%</span>
                                     ))}
-                                    {longApp.slice(0,1).map((c,i)=>(
-                                      <div key={i} className="text-xs text-emerald-800 leading-snug mt-0.5">{c}</div>
+                                    {(report.appreciation||[]).map((c,i)=>(
+                                      <div key={i} className="flex items-start gap-1 text-xs text-slate-700 leading-snug mt-0.5">
+                                        <span className="text-emerald-500 font-bold shrink-0 mt-0.5">•</span><span>{c}</span>
+                                      </div>
                                     ))}
-                                    {pctEntries.length===0&&longApp.length===0&&<span className="text-slate-300 text-xs">None</span>}
+                                    {pctEntries.length===0&&(report.appreciation||[]).length===0&&<span className="text-slate-300 text-xs">None</span>}
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 max-w-[180px]">
+                                <td className="px-4 py-3 max-w-[200px]">
                                   {(report.commentsNeedingAttention||[]).length>0
-                                    ? <div className="space-y-1">{(report.commentsNeedingAttention||[]).slice(0,2).map((c,i)=>(
-                                        <div key={i} className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded px-2 py-0.5 leading-snug">{c}</div>
+                                    ? <div className="space-y-1">{(report.commentsNeedingAttention||[]).map((c,i)=>(
+                                        <div key={i} className="flex items-start gap-1 text-xs leading-snug">
+                                          <span className="text-amber-500 font-bold shrink-0 mt-0.5">•</span>
+                                          <span className="text-slate-700">{c}</span>
+                                        </div>
                                       ))}</div>
                                     : <span className="text-slate-300 text-xs">None</span>}
                                 </td>
