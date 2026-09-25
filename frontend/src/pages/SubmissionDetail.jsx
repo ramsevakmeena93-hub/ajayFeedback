@@ -24,15 +24,19 @@ function autoNumber(text) {
 // Expandable comment list cell
 function CommentCell({ items, color }) {
   const [expanded, setExpanded] = useState(false);
-  if (!items || items.length === 0) return <span className="text-slate-300 text-xs">—</span>;
+  if (!items || items.length === 0) return <span className="text-xs text-slate-400 italic">No suggestions</span>;
   const bg = color === "green"
     ? "bg-emerald-50 border-emerald-200 text-emerald-800"
     : "bg-amber-50 border-amber-200 text-amber-800";
+  const bullet = color === "green" ? "text-emerald-500" : "text-amber-500";
   const visible = expanded ? items : items.slice(0, 2);
   return (
     <div className="space-y-1">
       {visible.map((c, i) => (
-        <div key={i} className={`text-xs border rounded-lg px-2 py-1 leading-relaxed ${bg}`}>{c}</div>
+        <div key={i} className="flex items-start gap-1.5 text-xs leading-relaxed">
+          <span className={`mt-0.5 font-bold shrink-0 ${bullet}`}>•</span>
+          <span className="text-slate-700">{c}</span>
+        </div>
       ))}
       {items.length > 2 && (
         <button onClick={() => setExpanded(e => !e)}
@@ -141,7 +145,7 @@ export default function SubmissionDetail() {
             <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Department</p><p className="font-semibold text-slate-800">{submission.hodId?.department || submission.department || "—"}</p></div>
             <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Academic Year</p><p className="font-semibold text-slate-800">{submission.academicYear || "—"}</p></div>
             <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Session</p><p className="font-semibold text-slate-800">{sessionLabel}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Form No.</p><p className="font-semibold text-slate-800">{submission.feedbackFormNo ? `Form ${submission.feedbackFormNo}` : "—"}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Form No.</p><p className="font-semibold text-slate-800">{submission.feedbackFormNo ? `Feedback Form ${submission.feedbackFormNo}` : "—"}</p></div>
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Status</p>
               <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${
@@ -215,7 +219,7 @@ export default function SubmissionDetail() {
                   {uniqueReports.map((r, idx) => {
                     const pcts    = r.commentPercentages || {};
                     const pctList = Object.entries(pcts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-                    const appAll  = (r.appreciation || []).filter(c => c.trim().split(/\s+/).length >= 6);
+                    const appAll  = r.appreciation || [];
                     const attList = r.commentsNeedingAttention || [];
                     return (
                       <tr key={r._id} className="hover:bg-slate-50 align-top transition-colors">
