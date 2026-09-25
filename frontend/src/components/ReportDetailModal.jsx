@@ -318,39 +318,15 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
                   <span className="font-bold text-white text-sm">Edit Appreciation Comments</span>
                   <button onClick={() => setEditingApp(false)} className="text-white/80 hover:text-white text-lg">✕</button>
                 </div>
-                <div className="p-5 space-y-4">
-                  {(report.appreciation||[]).length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Current comments</p>
-                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-36 overflow-y-auto">
-                        {(report.appreciation||[]).map((t,i) => (
-                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                            <span className="mt-0.5 text-emerald-500 font-bold shrink-0">•</span><span>{t}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="p-5 space-y-3">
                   <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edit — one comment per line</p>
-                    <textarea autoFocus rows={6}
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">One comment per line</p>
+                    <textarea autoFocus rows={8}
                       className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300 leading-relaxed"
                       value={appDraft} onChange={e => setAppDraft(e.target.value)}
                       placeholder="Enter each comment on a new line..." />
                     <p className="text-xs text-slate-400">Each line = one bullet point.</p>
                   </div>
-                  {appDraft.trim() && (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Preview</p>
-                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
-                        {appDraft.split('\n').map(s=>s.trim()).filter(Boolean).map((c,i) => (
-                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                            <span className="mt-0.5 text-emerald-500 font-bold shrink-0">•</span><span>{c}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div className="px-5 py-3.5 border-t bg-slate-50 flex gap-3 justify-end">
                   <button onClick={() => setEditingApp(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition">Cancel</button>
@@ -369,39 +345,15 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
                   <span className="font-bold text-white text-sm">Edit Needs Attention Comments</span>
                   <button onClick={() => setEditingAtt(false)} className="text-white/80 hover:text-white text-lg">✕</button>
                 </div>
-                <div className="p-5 space-y-4">
-                  {(report.commentsNeedingAttention||[]).length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Current comments</p>
-                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-36 overflow-y-auto">
-                        {(report.commentsNeedingAttention||[]).map((t,i) => (
-                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                            <span className="mt-0.5 text-amber-500 font-bold shrink-0">•</span><span>{t}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="p-5 space-y-3">
                   <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edit — one comment per line</p>
-                    <textarea autoFocus rows={6}
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">One comment per line</p>
+                    <textarea autoFocus rows={8}
                       className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 leading-relaxed"
                       value={attDraft} onChange={e => setAttDraft(e.target.value)}
                       placeholder="Enter each comment on a new line..." />
                     <p className="text-xs text-slate-400">Each line = one bullet point.</p>
                   </div>
-                  {attDraft.trim() && (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Preview</p>
-                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
-                        {attDraft.split('\n').map(s=>s.trim()).filter(Boolean).map((c,i) => (
-                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                            <span className="mt-0.5 text-amber-500 font-bold shrink-0">•</span><span>{c}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div className="px-5 py-3.5 border-t bg-slate-50 flex gap-3 justify-end">
                   <button onClick={() => setEditingAtt(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition">Cancel</button>

@@ -98,50 +98,20 @@ function EditableComments({ reportId, field, items, color, commentPercentages, o
               <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white text-lg leading-none">✕</button>
             </div>
 
-            <div className="p-5 space-y-4">
-              {/* Current comments as bullet points (read view before edit) */}
-              {display && display.length > 0 && (
-                <div className="space-y-2 mb-1">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Current comments</p>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 max-h-40 overflow-y-auto">
-                    {display.map((c, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                        <span className={`mt-0.5 font-bold shrink-0 ${bulletColor}`}>•</span>
-                        <span>{c}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Edit area */}
+            <div className="p-5 space-y-3">
+              {/* Edit area only */}
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edit — one comment per line</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">One comment per line</p>
                 <textarea
                   autoFocus
-                  rows={6}
+                  rows={8}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 leading-relaxed"
                   value={val}
                   onChange={e => setVal(e.target.value)}
-                  placeholder={"Enter each comment on a new line...\n• Good understanding of concepts\n• Need to improve delivery"}
+                  placeholder={"Enter each comment on a new line..."}
                 />
                 <p className="text-xs text-slate-400">Each line = one bullet point. Blank lines are ignored.</p>
               </div>
-
-              {/* Preview */}
-              {val.trim() && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Preview</p>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
-                    {val.split('\n').map(s=>s.trim()).filter(Boolean).map((c,i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                        <span className={`mt-0.5 font-bold shrink-0 ${bulletColor}`}>•</span>
-                        <span>{c}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Footer */}
