@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Search, Eye, Trash2, Pencil, X as XIcon, Check } from "lucide-react";
 import ReportDetailModal from "./ReportDetailModal";
 
@@ -41,39 +42,118 @@ function CommentList({ items, color, commentPercentages }) {
 }
 
 function EditableComments({ reportId, field, items, color, commentPercentages, onSave }) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [val, setVal] = useState((items || []).join('\n'));
+
+  function openModal() {
+    setVal((items || []).join('\n'));
+    setOpen(true);
+  }
   function save() {
     const list = val.split('\n').map(s => s.trim()).filter(Boolean);
     onSave && onSave(reportId, field, list);
-    setEditing(false);
+    setOpen(false);
   }
+
   const isAtt = color === "red";
-  const bg = isAtt ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100";
-  if (editing) return (
-    <div className="flex flex-col gap-1 min-w-[160px]">
-      <textarea autoFocus rows={4} className="input text-xs resize-none py-1 w-full"
-        value={val} onChange={e => setVal(e.target.value)} placeholder="One comment per line..." />
-      <div className="flex gap-1">
-        <button onClick={save} className="btn btn-success btn-sm text-xs py-0.5">✓ Save</button>
-        <button onClick={() => setEditing(false)} className="btn btn-ghost btn-sm text-xs py-0.5">✕</button>
-      </div>
-    </div>
-  );
   const display = items && items.length > 0 ? items : null;
   const pcts = !isAtt && commentPercentages ? Object.entries(commentPercentages).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]) : [];
+
+  const headerColor = isAtt
+    ? "bg-amber-600 text-white"
+    : "bg-emerald-600 text-white";
+  const bulletColor = isAtt ? "text-amber-500" : "text-emerald-500";
+  const label = isAtt ? "Needs Attention" : "Appreciation";
+
   return (
-    <div className="group relative cursor-pointer" onClick={() => { setVal((items||[]).join('\n')); setEditing(true); }}>
-      <div className="flex flex-col gap-1 max-h-[120px] overflow-y-auto scrollbar-thin pr-1">
-        {!isAtt && pcts.map(([k,v],i) => (
-          <div key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-2 py-0.5 text-xs font-medium">{k}: {v}%</div>
-        ))}
-        {display ? display.map((c,i) => (
-          <div key={i} className={`border rounded px-2 py-0.5 text-xs leading-snug ${bg}`}>{c}</div>
-        )) : <span className="text-slate-400 italic text-xs">No comments</span>}
+    <>
+      {/* Table cell display — click to open popup */}
+      <div className="group relative cursor-pointer" onClick={openModal}>
+        <div className="flex flex-col gap-1 max-h-[120px] overflow-y-auto scrollbar-thin pr-1">
+          {!isAtt && pcts.map(([k,v],i) => (
+            <div key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-2 py-0.5 text-xs font-medium">{k}: {v}%</div>
+          ))}
+          {display ? display.map((c,i) => (
+            <div key={i} className="flex items-start gap-1.5 text-xs leading-snug">
+              <span className={`mt-0.5 font-bold shrink-0 ${bulletColor}`}>•</span>
+              <span className="text-slate-700">{c}</span>
+            </div>
+          )) : <span className="text-slate-400 italic text-xs">No comments</span>}
+        </div>
+        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition">
+          <Pencil size={10} className="text-slate-400"/>
+        </span>
       </div>
-      <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition"><Pencil size={10} className="text-slate-400"/></span>
-    </div>
+
+      {/* Popup Modal */}
+      {open && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+          onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scale-in">
+            {/* Header */}
+            <div className={`px-5 py-3.5 flex items-center justify-between ${headerColor}`}>
+              <span className="font-bold text-sm tracking-wide">{label}</span>
+              <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white text-lg leading-none">✕</button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Current comments as bullet points (read view before edit) */}
+              {display && display.length > 0 && (
+                <div className="space-y-2 mb-1">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Current comments</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 max-h-40 overflow-y-auto">
+                    {display.map((c, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                        <span className={`mt-0.5 font-bold shrink-0 ${bulletColor}`}>•</span>
+                        <span>{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Edit area */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edit — one comment per line</p>
+                <textarea
+                  autoFocus
+                  rows={6}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 leading-relaxed"
+                  value={val}
+                  onChange={e => setVal(e.target.value)}
+                  placeholder={"Enter each comment on a new line...\n• Good understanding of concepts\n• Need to improve delivery"}
+                />
+                <p className="text-xs text-slate-400">Each line = one bullet point. Blank lines are ignored.</p>
+              </div>
+
+              {/* Preview */}
+              {val.trim() && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Preview</p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
+                    {val.split('\n').map(s=>s.trim()).filter(Boolean).map((c,i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                        <span className={`mt-0.5 font-bold shrink-0 ${bulletColor}`}>•</span>
+                        <span>{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 border-t bg-slate-50 flex gap-3 justify-end">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition">Cancel</button>
+              <button onClick={save} className={`px-5 py-2 text-sm font-semibold text-white rounded-xl transition ${isAtt ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>
+                ✓ Save Changes
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown } from "lucide-react";
+import { X, FileText, User, BarChart3, CheckCircle2, Clock, AlertCircle, ExternalLink, ThumbsUp, AlertTriangle, Zap, ChevronDown, Pencil } from "lucide-react";
 import { getPdfUrl, API_BASE } from "../api";
 import toast from "react-hot-toast";
 
@@ -248,7 +248,7 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
             </div>
           )}
 
-          {/* Comments Analysis — Editable Sections */}
+          {/* Comments Analysis — Popup Edit Sections */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {/* Appreciation */}
             <div className="rounded-2xl border border-emerald-200 overflow-hidden">
@@ -259,32 +259,24 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg">{(report.appreciation||[]).length}</span>
-                  {onFieldEdit && !editingApp && (
+                  {onFieldEdit && (
                     <button onClick={() => { setAppDraft((report.appreciation||[]).join('\n')); setEditingApp(true); }}
-                      className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold px-2 py-0.5 rounded hover:bg-emerald-100 transition">Edit</button>
+                      className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold px-2 py-0.5 rounded hover:bg-emerald-100 transition flex items-center gap-1">
+                      <Pencil size={11}/> Edit
+                    </button>
                   )}
                 </div>
               </div>
-              {editingApp ? (
-                <div className="p-3 space-y-2">
-                  <textarea autoFocus className="w-full border rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" rows={6}
-                    placeholder="One comment per line..." value={appDraft} onChange={e=>setAppDraft(e.target.value)} />
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={()=>setEditingApp(false)} className="btn btn-ghost btn-sm text-xs">Cancel</button>
-                    <button onClick={()=>saveComments('appreciation',appDraft,setEditingApp)} className="btn btn-success btn-sm text-xs">Save</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                  {(report.appreciation||[]).length === 0
-                    ? <p className="text-xs text-slate-400 italic py-2 text-center">No appreciation comments</p>
-                    : (report.appreciation||[]).map((t,i) => (
-                      <div key={i} className="flex gap-2 text-xs text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 leading-snug">
-                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span><span>{t}</span>
-                      </div>
-                    ))}
-                </div>
-              )}
+              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                {(report.appreciation||[]).length === 0
+                  ? <p className="text-xs text-slate-400 italic py-2 text-center">No appreciation comments</p>
+                  : (report.appreciation||[]).map((t,i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700 leading-relaxed">
+                      <span className="mt-1 text-emerald-500 font-bold shrink-0">•</span>
+                      <span>{t}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
 
             {/* Needs Attention */}
@@ -296,34 +288,128 @@ export default function ReportDetailModal({ report: initialReport, onClose, onAp
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">{(report.commentsNeedingAttention||[]).length}</span>
-                  {onFieldEdit && !editingAtt && (
+                  {onFieldEdit && (
                     <button onClick={() => { setAttDraft((report.commentsNeedingAttention||[]).join('\n')); setEditingAtt(true); }}
-                      className="text-xs text-amber-600 hover:text-amber-800 font-semibold px-2 py-0.5 rounded hover:bg-amber-100 transition">Edit</button>
+                      className="text-xs text-amber-600 hover:text-amber-800 font-semibold px-2 py-0.5 rounded hover:bg-amber-100 transition flex items-center gap-1">
+                      <Pencil size={11}/> Edit
+                    </button>
                   )}
                 </div>
               </div>
-              {editingAtt ? (
-                <div className="p-3 space-y-2">
-                  <textarea autoFocus className="w-full border rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" rows={6}
-                    placeholder="One comment per line..." value={attDraft} onChange={e=>setAttDraft(e.target.value)} />
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={()=>setEditingAtt(false)} className="btn btn-ghost btn-sm text-xs">Cancel</button>
-                    <button onClick={()=>saveComments('commentsNeedingAttention',attDraft,setEditingAtt)} className="btn btn-success btn-sm text-xs">Save</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
-                  {(report.commentsNeedingAttention||[]).length === 0
-                    ? <p className="text-xs text-slate-400 italic py-2 text-center">No concerns raised</p>
-                    : (report.commentsNeedingAttention||[]).map((t,i) => (
-                      <div key={i} className="flex gap-2 text-xs text-slate-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-snug">
-                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span><span>{t}</span>
-                      </div>
-                    ))}
-                </div>
-              )}
+              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+                {(report.commentsNeedingAttention||[]).length === 0
+                  ? <p className="text-xs text-slate-400 italic py-2 text-center">No concerns raised</p>
+                  : (report.commentsNeedingAttention||[]).map((t,i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700 leading-relaxed">
+                      <span className="mt-1 text-amber-500 font-bold shrink-0">•</span>
+                      <span>{t}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
+
+          {/* Edit Appreciation Popup */}
+          {editingApp && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
+              onClick={e => { if(e.target===e.currentTarget) setEditingApp(false); }}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <div className="bg-emerald-600 px-5 py-3.5 flex items-center justify-between">
+                  <span className="font-bold text-white text-sm">Edit Appreciation Comments</span>
+                  <button onClick={() => setEditingApp(false)} className="text-white/80 hover:text-white text-lg">✕</button>
+                </div>
+                <div className="p-5 space-y-4">
+                  {(report.appreciation||[]).length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Current comments</p>
+                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-36 overflow-y-auto">
+                        {(report.appreciation||[]).map((t,i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                            <span className="mt-0.5 text-emerald-500 font-bold shrink-0">•</span><span>{t}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edit — one comment per line</p>
+                    <textarea autoFocus rows={6}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300 leading-relaxed"
+                      value={appDraft} onChange={e => setAppDraft(e.target.value)}
+                      placeholder="Enter each comment on a new line..." />
+                    <p className="text-xs text-slate-400">Each line = one bullet point.</p>
+                  </div>
+                  {appDraft.trim() && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Preview</p>
+                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
+                        {appDraft.split('\n').map(s=>s.trim()).filter(Boolean).map((c,i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                            <span className="mt-0.5 text-emerald-500 font-bold shrink-0">•</span><span>{c}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="px-5 py-3.5 border-t bg-slate-50 flex gap-3 justify-end">
+                  <button onClick={() => setEditingApp(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition">Cancel</button>
+                  <button onClick={() => saveComments('appreciation', appDraft, setEditingApp)} className="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition">✓ Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Needs Attention Popup */}
+          {editingAtt && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
+              onClick={e => { if(e.target===e.currentTarget) setEditingAtt(false); }}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <div className="bg-amber-600 px-5 py-3.5 flex items-center justify-between">
+                  <span className="font-bold text-white text-sm">Edit Needs Attention Comments</span>
+                  <button onClick={() => setEditingAtt(false)} className="text-white/80 hover:text-white text-lg">✕</button>
+                </div>
+                <div className="p-5 space-y-4">
+                  {(report.commentsNeedingAttention||[]).length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Current comments</p>
+                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-36 overflow-y-auto">
+                        {(report.commentsNeedingAttention||[]).map((t,i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                            <span className="mt-0.5 text-amber-500 font-bold shrink-0">•</span><span>{t}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Edit — one comment per line</p>
+                    <textarea autoFocus rows={6}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 leading-relaxed"
+                      value={attDraft} onChange={e => setAttDraft(e.target.value)}
+                      placeholder="Enter each comment on a new line..." />
+                    <p className="text-xs text-slate-400">Each line = one bullet point.</p>
+                  </div>
+                  {attDraft.trim() && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Preview</p>
+                      <div className="bg-slate-50 border rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
+                        {attDraft.split('\n').map(s=>s.trim()).filter(Boolean).map((c,i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                            <span className="mt-0.5 text-amber-500 font-bold shrink-0">•</span><span>{c}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="px-5 py-3.5 border-t bg-slate-50 flex gap-3 justify-end">
+                  <button onClick={() => setEditingAtt(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition">Cancel</button>
+                  <button onClick={() => saveComments('commentsNeedingAttention', attDraft, setEditingAtt)} className="px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition">✓ Save</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Raw Student Comments — Collapsible */}
           {report.rawStudentComments && report.rawStudentComments.length > 0 && (
