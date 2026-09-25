@@ -107,7 +107,7 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
                   </div>
                   <div className="space-y-1.5">
                     {!report?.appreciation?.length ? (
-                      <p className="text-xs text-slate-400 italic pl-3">No comments</p>
+                      <p className="text-xs text-slate-400 italic pl-3">No suggestions</p>
                     ) : report.appreciation.map((t, i) => (
                       <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
                         <span className="mt-1.5 text-emerald-500 font-bold shrink-0">•</span>
@@ -131,7 +131,7 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
                   </div>
                   <div className="space-y-1.5">
                     {!report?.commentsNeedingAttention?.length ? (
-                      <p className="text-xs text-slate-400 italic pl-3">No comments</p>
+                      <p className="text-xs text-slate-400 italic pl-3">No suggestions</p>
                     ) : report.commentsNeedingAttention.map((t, i) => (
                       <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
                         <span className="mt-1.5 text-amber-500 font-bold shrink-0">•</span>
@@ -719,7 +719,7 @@ export default function FacultyDashboard() {
                                         <span className="text-emerald-500 font-bold shrink-0 mt-0.5">•</span><span>{c}</span>
                                       </div>
                                     ))}
-                                    {pctEntries.length===0&&(report.appreciation||[]).length===0&&<span className="text-slate-300 text-xs">None</span>}
+                                    {pctEntries.length===0&&(report.appreciation||[]).length===0&&<span className="text-slate-300 text-xs">No suggestions</span>}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 max-w-[200px]">
@@ -730,7 +730,7 @@ export default function FacultyDashboard() {
                                           <span className="text-slate-700">{c}</span>
                                         </div>
                                       ))}</div>
-                                    : <span className="text-slate-300 text-xs">None</span>}
+                                    : <span className="text-slate-300 text-xs">No suggestions</span>}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-600 max-w-[140px]">
                                   {report.hodRemarks||<span className="text-slate-300">—</span>}
