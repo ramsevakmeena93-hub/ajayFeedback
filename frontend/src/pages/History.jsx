@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE } from "../api";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -81,7 +82,8 @@ function SubmissionCard({ sub, token, onViewReport, filterFaculty }) {
       const url = semFilter
         ? `/api/submissions/${sub._id}/download-pdf?semester=${semFilter}`
         : `/api/submissions/${sub._id}/download-pdf`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+      const res = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) { const e = await res.json().catch(()=>({error:"Failed"})); toast.error(e.error || "Failed", { id: toastId }); return; }
       const blob = await res.blob();
       const a = document.createElement("a");

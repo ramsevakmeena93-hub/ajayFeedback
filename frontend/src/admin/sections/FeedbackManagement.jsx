@@ -305,7 +305,7 @@ export default function FeedbackManagement({ token, isDark }) {
     toast.loading('Generating PDF…', { id: 'pdf-dl' });
     try {
       const baseURL = api.defaults.baseURL || '';
-      const res = await fetch(`${baseURL}/api/submissions/${submissionId}/pdf`, {
+      const res = await fetch(`${baseURL}/api/submissions/${submissionId}/download-pdf`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed');
