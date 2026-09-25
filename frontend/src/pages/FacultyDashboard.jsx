@@ -68,64 +68,82 @@ function ReportCard({ report, onAcknowledge, acknowledging }) {
           </div>
         </div>
 
-        {/* Expanded details — same format as HOD */}
+        {/* Expanded details — AI Analysis Style */}
         {expanded && (
           <div className="mt-4 pt-4 border-t space-y-4">
-            {/* Comment percentages */}
-            {report?.commentPercentages && Object.keys(report.commentPercentages).length > 0 && (
-              <div className="bg-red-50 border border-red-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-3">Appreciation Breakdown</p>
-                <div className="space-y-2">
-                  {Object.entries(report.commentPercentages).sort((a, b) => b[1] - a[1]).map(([label, pct]) => (
-                    <div key={label} className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-red-700 w-20 shrink-0">{label}</span>
-                      <div className="flex-1 bg-red-100 rounded-full h-2">
-                        <div className="bg-red-500 h-2 rounded-full" style={{ width: `${pct}%` }}></div>
+
+            {/* ── AI ANALYSIS BLOCK ── */}
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-5 py-3 flex items-center gap-2">
+                <span className="text-white font-black text-sm tracking-widest uppercase">🤖 AI Analysis</span>
+              </div>
+
+              <div className="p-5 space-y-5">
+
+                {/* Comment % breakdown bar */}
+                {report?.commentPercentages && Object.keys(report.commentPercentages).length > 0 && (
+                  <div className="space-y-2">
+                    {Object.entries(report.commentPercentages).sort((a,b)=>b[1]-a[1]).map(([label,pct])=>(
+                      <div key={label} className="flex items-center gap-3">
+                        <span className="text-xs font-semibold text-slate-600 w-20 shrink-0">{label}</span>
+                        <div className="flex-1 bg-slate-100 rounded-full h-2">
+                          <div className={`h-2 rounded-full ${parseFloat(pct)>=60?"bg-emerald-500":parseFloat(pct)>=30?"bg-amber-400":"bg-rose-400"}`} style={{width:`${pct}%`}}/>
+                        </div>
+                        <span className="text-xs font-bold text-slate-700 w-10 text-right">{pct}%</span>
                       </div>
-                      <span className="text-xs font-bold text-red-700 w-10 text-right">{pct}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    ))}
+                  </div>
+                )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Needs Attention */}
-              <div className="rounded-xl border border-amber-200 overflow-hidden">
-                <div className="bg-amber-50 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-amber-700">🟡 Comments Needing Attention</span>
-                  <span className="badge-yellow">{report?.commentsNeedingAttention?.length || 0}</span>
+                {/* APPRECIATION */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-4 w-1 bg-emerald-500 rounded-full"/>
+                    <p className="text-xs font-black text-slate-800 uppercase tracking-widest">Appreciation</p>
+                    <span className="ml-auto text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                      {report?.appreciation?.length || 0}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {!report?.appreciation?.length ? (
+                      <p className="text-xs text-slate-400 italic pl-3">No comments</p>
+                    ) : report.appreciation.map((t, i) => (
+                      <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
+                        <span className="mt-1.5 text-emerald-500 font-bold shrink-0">•</span>
+                        <span>{t}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="p-3 space-y-1.5">
-                  {!report?.commentsNeedingAttention?.length ? (
-                    <p className="text-xs text-slate-400 italic">None found</p>
-                  ) : report.commentsNeedingAttention.map((t, i) => (
-                    <div key={i} className="flex gap-2 text-xs text-slate-700 bg-amber-50 border border-amber-100 rounded px-2 py-1.5">
-                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>{t}
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Appreciation */}
-              <div className="rounded-xl border border-emerald-200 overflow-hidden">
-                <div className="bg-emerald-50 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-700">✅ Appreciation</span>
-                  <span className="badge-green">{report?.appreciation?.length || 0}</span>
-                </div>
-                <div className="p-3 space-y-1.5">
-                  {!report?.appreciation?.length ? (
-                    <p className="text-xs text-slate-400 italic">None found</p>
-                  ) : report.appreciation.map((t, i) => (
-                    <div key={i} className="flex gap-2 text-xs text-slate-700 bg-emerald-50 border border-emerald-100 rounded px-2 py-1.5">
-                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>{t}
-                    </div>
-                  ))}
+                {/* Divider */}
+                <div className="border-t border-dashed border-slate-200"/>
+
+                {/* NEED ATTENTION */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-4 w-1 bg-amber-500 rounded-full"/>
+                    <p className="text-xs font-black text-slate-800 uppercase tracking-widest">Need Attention</p>
+                    <span className="ml-auto text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                      {report?.commentsNeedingAttention?.length || 0}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {!report?.commentsNeedingAttention?.length ? (
+                      <p className="text-xs text-slate-400 italic pl-3">No comments</p>
+                    ) : report.commentsNeedingAttention.map((t, i) => (
+                      <div key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
+                        <span className="mt-1.5 text-amber-500 font-bold shrink-0">•</span>
+                        <span>{t}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Action Taken by HOD — always show if exists */}
+            {/* Action Taken by HOD */}
             {report?.actionTaken && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
                 <p className="text-xs font-bold text-indigo-700 mb-1.5 uppercase tracking-wide">✍️ Action Taken by HOD</p>
