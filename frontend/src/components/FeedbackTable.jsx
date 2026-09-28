@@ -19,7 +19,7 @@ function CommentList({ items, color, commentPercentages }) {
     const longComments = (items || []).filter(c => c.trim().split(/\s+/).length > 4);
     if (entries.length === 0 && longComments.length === 0) return <span className="text-xs text-slate-300 italic">None</span>;
     return (
-      <div className="space-y-1 max-w-[200px]">
+      <div className="space-y-1">
         {entries.map(([label, pct]) => (
           <span key={label} className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-2 py-0.5 font-semibold inline-block mr-1">
             {label} {pct}%
@@ -33,7 +33,7 @@ function CommentList({ items, color, commentPercentages }) {
   }
   if (!items || items.length === 0) return <span className="text-xs text-slate-300 italic">None</span>;
   return (
-    <div className="space-y-1 max-w-[200px]">
+    <div className="space-y-1">
       {items.map((t,i) => (
         <div key={i} className="text-xs bg-amber-50 border border-amber-100 text-amber-800 rounded-lg px-2 py-1 leading-snug">{t}</div>
       ))}
@@ -166,7 +166,7 @@ function EditableCell({ reportId, field, value, onEdit, cls }) {
     </div>
   );
   return (
-    <span className={"cursor-pointer hover:bg-indigo-50 hover:text-indigo-700 rounded-lg px-1.5 py-0.5 transition-colors text-sm " + (cls || "")}
+    <span className={"cursor-pointer hover:bg-indigo-50 hover:text-indigo-700 rounded-lg px-1.5 py-0.5 transition-colors text-xs leading-snug break-words inline-block " + (cls || "")}
       title="Click to edit" onClick={() => { setVal(value || ""); setEditing(true); }}>
       {value || <span className="text-slate-300 italic text-xs">—</span>}
     </span>
@@ -244,18 +244,18 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
           <thead className="table-header">
             <tr>
               <th className="px-3 py-3 w-8"><input type="checkbox" checked={selected.length===selectableIds.length && selectableIds.length>0} onChange={toggleAll} className="rounded accent-indigo-600" /></th>
-              <th className="px-3 py-3 text-left">S.No</th>
-              <th className="px-3 py-3 text-left">Faculty Name</th>
-              <th className="px-3 py-3 text-left">Subject Code</th>
-              <th className="px-3 py-3 text-left">Course Name</th>
-              <th className="px-3 py-3 text-center">Sem</th>
-              <th className="px-3 py-3 text-center">FFI</th>
-              <th className="px-3 py-3 text-center">Resp. %</th>
-              <th className="px-3 py-3 text-left">Needs Attention</th>
-              <th className="px-3 py-3 text-left">Appreciation</th>
-              <th className="px-3 py-3 text-left">Action Taken</th>
-              <th className="px-3 py-3 text-center">View</th>
-              {onDeleteReport && <th className="px-3 py-3 text-center">Del</th>}
+              <th className="px-3 py-3 text-left w-12">S.No</th>
+              <th className="px-3 py-3 text-left min-w-[120px]">Faculty Name</th>
+              <th className="px-3 py-3 text-left min-w-[110px]">Subject Code</th>
+              <th className="px-3 py-3 text-left w-36 min-w-[130px]">Course Name</th>
+              <th className="px-3 py-3 text-center w-12">Sem</th>
+              <th className="px-3 py-3 text-center w-14">FFI</th>
+              <th className="px-3 py-3 text-center w-16">Resp. %</th>
+              <th className="px-3 py-3 text-left min-w-[200px]">Needs Attention</th>
+              <th className="px-3 py-3 text-left min-w-[200px]">Appreciation</th>
+              <th className="px-3 py-3 text-left min-w-[120px]">Action Taken</th>
+              <th className="px-3 py-3 text-center w-16">View</th>
+              {onDeleteReport && <th className="px-3 py-3 text-center w-12">Del</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -264,33 +264,33 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
               const deletable = canDelete(report);
               return (
                 <tr key={report._id} className={`table-row align-top ${selected.includes(report._id) ? "bg-indigo-50/60" : ""}`}>
-                  <td className="px-3 py-3"><input type="checkbox" checked={selected.includes(report._id)} onChange={() => toggleSelect(report._id)} disabled={(report.status!=="processed" && report.status!=="faculty_approved") || isSubmitted(report._id)} className="rounded accent-indigo-600" /></td>
-                  <td className="px-3 py-3 text-slate-400 text-xs font-medium">{(page-1)*PAGE_SIZE+idx+1}</td>
-                  <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap">
+                  <td className="px-3 py-3 w-8"><input type="checkbox" checked={selected.includes(report._id)} onChange={() => toggleSelect(report._id)} disabled={(report.status!=="processed" && report.status!=="faculty_approved") || isSubmitted(report._id)} className="rounded accent-indigo-600" /></td>
+                  <td className="px-3 py-3 text-slate-400 text-xs font-medium w-12">{(page-1)*PAGE_SIZE+idx+1}</td>
+                  <td className="px-3 py-3 font-semibold text-slate-800 text-xs min-w-[120px] whitespace-normal">
                     <EditableCell reportId={report._id} field="facultyName" value={report.facultyName} onEdit={onFieldEdit} cls="font-semibold" />
                   </td>
-                  <td className="px-3 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">
+                  <td className="px-3 py-3 text-xs font-mono text-slate-600 min-w-[110px] whitespace-normal">
                     <EditableCell reportId={report._id} field="subjectCode" value={report.subjectCode} onEdit={onFieldEdit} />
                   </td>
-                  <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">
+                  <td className="px-3 py-3 text-xs text-slate-600 w-36 min-w-[130px] whitespace-normal break-words leading-snug">
                     <EditableCell reportId={report._id} field="programme" value={report.programme} onEdit={onFieldEdit} />
                   </td>
-                  <td className="px-3 py-3 text-center text-xs">
+                  <td className="px-3 py-3 text-center text-xs w-12">
                     <EditableCell reportId={report._id} field="semester" value={report.semester} onEdit={onFieldEdit} />
                   </td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="px-3 py-3 text-center w-14">
                     {report.ffiScore!=null ? (
                       <span className={`text-sm font-bold ${report.ffiScore>=4?"text-emerald-600":report.ffiScore>=3?"text-amber-600":"text-red-600"}`}>
                         {report.ffiScore.toFixed(2)}
                       </span>
                     ) : <span className="text-slate-300">-</span>}
                   </td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="px-3 py-3 text-center w-16">
                     <span className="text-xs font-semibold text-slate-500">
                       {report.responsePercent != null ? `${Number(report.responsePercent).toFixed(2)}%` : (report.responseCount != null ? String(report.responseCount) : "-")}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-xs max-w-[200px] whitespace-normal">
+                  <td className="px-3 py-3 text-xs min-w-[200px] whitespace-normal">
                     <EditableComments
                       reportId={report._id}
                       field="commentsNeedingAttention"
@@ -299,7 +299,7 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
                       onSave={onFieldEdit}
                     />
                   </td>
-                  <td className="px-3 py-3 text-xs max-w-[200px] whitespace-normal">
+                  <td className="px-3 py-3 text-xs min-w-[200px] whitespace-normal">
                     <EditableComments
                       reportId={report._id}
                       field="appreciation"
@@ -309,15 +309,15 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
                       onSave={onFieldEdit}
                     />
                   </td>
-                  <td className="px-3 py-3"><ActionTakenCell reportId={report._id} value={report.actionTaken} onSave={onFieldEdit} /></td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 min-w-[120px]"><ActionTakenCell reportId={report._id} value={report.actionTaken} onSave={onFieldEdit} /></td>
+                  <td className="px-3 py-3 w-16">
                     <button onClick={() => setViewReport(report)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl transition-colors border border-indigo-200">
                       <Eye size={12}/> View
                     </button>
                   </td>
                   {onDeleteReport && (
-                    <td className="px-3 py-3 text-center">
+                    <td className="px-3 py-3 text-center w-12">
                       {deletable ? (
                         <button
                           onClick={() => onDeleteReport(report._id)}

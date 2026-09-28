@@ -397,103 +397,162 @@ async function extractMetaFromBuffer(buffer) {
     const yKeys = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
     let headerY = null;
     let dataY = null;
+    let isFormatA = false;
+
+    // Check page width
+    const viewport = page.getViewport({ scale: 1 });
+    if (viewport.width > 700) {
+      isFormatA = true;
+    }
 
     for (const y of yKeys) {
       const rowText = rowMap[y].map(i => i.str.toLowerCase()).join(' ');
-      if (rowText.includes('faculty') && (rowText.includes('code') || rowText.includes('name')) && (rowText.includes('semester') || rowText.includes('sem') || rowText.includes('ffi') || rowText.includes('resp'))) {
+      if (rowText.includes('faculty') && (rowText.includes('code') || rowText.includes('name') || rowText.includes('programme'))) {
         headerY = y;
-        const lowerRows = yKeys.filter(k => k < y).sort((a, b) => b - a);
-        for (const ky of lowerRows) {
-          if (rowMap[ky].length >= 5) {
-            dataY = ky;
-            break;
-          }
+        if (rowText.includes('programme') || rowText.includes('code/batch') || rowText.includes('needs attention') || rowText.includes('appreciation')) {
+          isFormatA = true;
         }
         break;
       }
     }
 
-    if (headerY && dataY) {
-      const dataRowItems = rowMap[dataY].sort((a, b) => a.x - b.x);
+    if (isFormatA && headerY) {
+      // Landscape Action Taken Report (ATR) table format
+      const snoItems = items.filter(i => i.x >= 15 && i.x <= 45 && i.y < headerY - 15 && /^\d+$/.test(i.str));
+      if (snoItems.length > 0) {
+        dataY = snoItems[0].y;
+        const nextSnoY = snoItems.length > 1 ? snoItems[1].y : (dataY - 40);
+        const minY = Math.max(dataY - 35, nextSnoY + 5);
 
-      // Extract FFI Score (float with decimal point, usually rightmost at ~X 540-560)
-      const ffiItem = dataRowItems.filter(i => /^\d+\.\d+$/.test(i.str)).sort((a, b) => b.x - a.x)[0];
-      const ffiScore = ffiItem ? parseFloat(ffiItem.str) : null;
-      const ffiX = ffiItem ? ffiItem.x : 547;
+        const recordItems = items.filter(i => i.y <= dataY + 3 && i.y >= minY);
 
-      // Extract % Resp. (Response Percent): float or number just to the left of FFI (X between ffiX - 55 and ffiX - 10)
-      let responsePercent = null;
-      const pctItem = dataRowItems.find(i => i.x < ffiX - 10 && i.x >= ffiX - 60 && /^\d+(?:\.\d+)?$/.test(i.str));
-      if (pctItem) {
-        responsePercent = parseFloat(pctItem.str);
-      }
+        const facultyParts = recordItems.filter(i => i.x >= 45 && i.x < 135).sort((a,b) => b.y - a.y).map(i => i.str);
+        const codeParts    = recordItems.filter(i => i.x >= 135 && i.x < 200).sort((a,b) => b.y - a.y).map(i => i.str);
+        const progParts    = recordItems.filter(i => i.x >= 200 && i.x < 270).sort((a,b) => b.y - a.y).map(i => i.str);
+        const semParts     = recordItems.filter(i => i.x >= 270 && i.x < 298).map(i => i.str);
+        const ffiParts     = recordItems.filter(i => i.x >= 295 && i.x < 330).map(i => i.str);
+        const respParts    = recordItems.filter(i => i.x >= 330 && i.x < 370).map(i => i.str);
 
-      // Extract Response Count: integer to the left of % Resp. (X between ffiX - 110 and ffiX - 60)
-      let responseCount = null;
-      const respItem = dataRowItems.find(i => i.x < ffiX - 60 && i.x >= ffiX - 110 && /^\d+$/.test(i.str));
-      if (respItem) {
-        responseCount = parseInt(respItem.str, 10);
-      }
+        const facultyName = facultyParts.join(' ').replace(/\s+/g, ' ').trim();
+        let subjectCode = codeParts.join(' - ').replace(/\s*-\s*/g, ' - ').trim();
+        if (!subjectCode.includes(' - ') && codeParts.length >= 2) {
+          subjectCode = codeParts.join(' - ');
+        }
+        let programme = progParts.join(' ')
+          .replace(/Engineer…/i, 'Engineering')
+          .replace(/\s+/g, ' ')
+          .trim();
 
-      // Extract Link Sent: integer at X ~ 410-440
-      let linkSent = null;
-      const linkItem = dataRowItems.find(i => i.x >= 400 && i.x < 450 && /^\d+$/.test(i.str));
-      if (linkItem) linkSent = parseInt(linkItem.str, 10);
+        let semester = semParts.find(s => /^[1-8]$/.test(s)) || semParts.join('').replace(/[^\d]/g, '');
+        let ffiScore = parseFloat(ffiParts.find(s => /^\d+\.\d+$/.test(s)) || '0') || null;
+        let respStr = respParts.join('').replace(/[^\d.%]/g, '');
+        let responsePercent = respStr.includes('%') ? parseFloat(respStr.replace('%', '')) : (parseFloat(respStr) || null);
 
-      // Extract Registered Students: integer at X ~ 350-380
-      let registeredStudents = null;
-      const regItem = dataRowItems.find(i => i.x >= 340 && i.x < 390 && /^\d+$/.test(i.str));
-      if (regItem) registeredStudents = parseInt(regItem.str, 10);
-
-      // Extract Semester: 1 or 2 digits at X ~ 300-340
-      let semester = '';
-      const semItem = dataRowItems.find(i => i.x >= 300 && i.x < 340 && /^\d{1,2}$/.test(i.str));
-      if (semItem) semester = semItem.str;
-
-      // Extract Faculty Name: items at X < 140
-      const facultyName = dataRowItems.filter(i => i.x < 140).map(i => i.str).join(' ').trim();
-
-      // Extract Course Code: items between X 140 and 240
-      const codeItems = dataRowItems.filter(i => i.x >= 140 && i.x < 240).map(i => i.str).join('');
-      const subjectCode = codeItems ? codeItems.replace(/\s+/g, '-').replace(/-+/g, '-') : '';
-
-      // Extract Course Name (Programme): items between X 240 and 320
-      // Also check multiple adjacent rows above the data row (course names can wrap)
-      const courseNameParts = [];
-      const yKeysSorted = yKeys.filter(k => k > dataY && k < headerY).sort((a, b) => a - b);
-      // Collect from up to 3 rows above the data row
-      for (const aboveY of yKeysSorted.slice(-3)) {
-        if (rowMap[aboveY]) {
-          rowMap[aboveY].filter(i => i.x >= 240 && i.x < 320).forEach(i => {
-            if (i.str.trim()) courseNameParts.unshift(i.str.trim());
-          });
+        if (facultyName || subjectCode || ffiScore !== null) {
+          bestMeta = {
+            facultyName,
+            subjectCode,
+            programme,
+            semester,
+            registeredStudents: null,
+            linkSent: null,
+            responseCount: null,
+            responsePercent,
+            ffiScore
+          };
         }
       }
-      dataRowItems.filter(i => i.x >= 240 && i.x < 320).forEach(i => {
-        if (i.str.trim()) courseNameParts.push(i.str.trim());
-      });
-      const programme = courseNameParts.join(' ').replace(/\s+/g, ' ').trim();
+    }
 
-      if (facultyName || subjectCode || ffiScore !== null) {
-        // If responsePercent missing but responseCount and linkSent/registeredStudents exist, calculate
-        if (responsePercent === null && responseCount !== null) {
-          const base = linkSent || registeredStudents;
-          if (base && base > 0) {
-            responsePercent = Math.round((responseCount / base) * 10000) / 100;
+    if (!bestMeta && headerY) {
+      // Format B: Portrait summary table
+      const lowerRows = yKeys.filter(k => k < headerY).sort((a, b) => b - a);
+      for (const ky of lowerRows) {
+        if (rowMap[ky].length >= 5) {
+          dataY = ky;
+          break;
+        }
+      }
+
+      if (dataY) {
+        const dataRowItems = rowMap[dataY].sort((a, b) => a.x - b.x);
+
+        // Extract FFI Score (float with decimal point, usually rightmost at ~X 540-560)
+        const ffiItem = dataRowItems.filter(i => /^\d+\.\d+$/.test(i.str)).sort((a, b) => b.x - a.x)[0];
+        const ffiScore = ffiItem ? parseFloat(ffiItem.str) : null;
+        const ffiX = ffiItem ? ffiItem.x : 547;
+
+        // Extract % Resp. (Response Percent): float or number just to the left of FFI (X between ffiX - 55 and ffiX - 10)
+        let responsePercent = null;
+        const pctItem = dataRowItems.find(i => i.x < ffiX - 10 && i.x >= ffiX - 60 && /^\d+(?:\.\d+)?$/.test(i.str));
+        if (pctItem) {
+          responsePercent = parseFloat(pctItem.str);
+        }
+
+        // Extract Response Count: integer to the left of % Resp. (X between ffiX - 110 and ffiX - 60)
+        let responseCount = null;
+        const respItem = dataRowItems.find(i => i.x < ffiX - 60 && i.x >= ffiX - 110 && /^\d+$/.test(i.str));
+        if (respItem) {
+          responseCount = parseInt(respItem.str, 10);
+        }
+
+        // Extract Link Sent: integer at X ~ 410-440
+        let linkSent = null;
+        const linkItem = dataRowItems.find(i => i.x >= 400 && i.x < 450 && /^\d+$/.test(i.str));
+        if (linkItem) linkSent = parseInt(linkItem.str, 10);
+
+        // Extract Registered Students: integer at X ~ 350-380
+        let registeredStudents = null;
+        const regItem = dataRowItems.find(i => i.x >= 340 && i.x < 390 && /^\d+$/.test(i.str));
+        if (regItem) registeredStudents = parseInt(regItem.str, 10);
+
+        // Extract Semester: 1 or 2 digits at X ~ 300-340
+        let semester = '';
+        const semItem = dataRowItems.find(i => i.x >= 300 && i.x < 340 && /^\d{1,2}$/.test(i.str));
+        if (semItem) semester = semItem.str;
+
+        // Extract Faculty Name: items at X < 140
+        const facultyName = dataRowItems.filter(i => i.x < 140).map(i => i.str).join(' ').trim();
+
+        // Extract Course Code: items between X 140 and 240
+        const codeItems = dataRowItems.filter(i => i.x >= 140 && i.x < 240).map(i => i.str).join('');
+        const subjectCode = codeItems ? codeItems.replace(/\s+/g, '-').replace(/-+/g, '-') : '';
+
+        // Extract Course Name (Programme): items between X 240 and 320
+        const courseNameParts = [];
+        const yKeysSorted = yKeys.filter(k => k > dataY && k < headerY).sort((a, b) => a - b);
+        for (const aboveY of yKeysSorted.slice(-3)) {
+          if (rowMap[aboveY]) {
+            rowMap[aboveY].filter(i => i.x >= 240 && i.x < 320).forEach(i => {
+              if (i.str.trim()) courseNameParts.unshift(i.str.trim());
+            });
           }
         }
+        dataRowItems.filter(i => i.x >= 240 && i.x < 320).forEach(i => {
+          if (i.str.trim()) courseNameParts.push(i.str.trim());
+        });
+        const programme = courseNameParts.join(' ').replace(/\s+/g, ' ').trim();
 
-        bestMeta = {
-          facultyName,
-          subjectCode,
-          programme,
-          semester,
-          registeredStudents,
-          linkSent,
-          responseCount,
-          responsePercent,
-          ffiScore
-        };
+        if (facultyName || subjectCode || ffiScore !== null) {
+          if (responsePercent === null && responseCount !== null) {
+            const base = linkSent || registeredStudents;
+            if (base && base > 0) {
+              responsePercent = Math.round((responseCount / base) * 10000) / 100;
+            }
+          }
+
+          bestMeta = {
+            facultyName,
+            subjectCode,
+            programme,
+            semester,
+            registeredStudents,
+            linkSent,
+            responseCount,
+            responsePercent,
+            ffiScore
+          };
+        }
       }
     }
   } catch (err) {
