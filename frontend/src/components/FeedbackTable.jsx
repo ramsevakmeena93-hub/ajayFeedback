@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Search, Eye, Trash2, Pencil, X as XIcon, Check } from "lucide-react";
+import { Search, Eye, Trash2, Pencil, X as XIcon, Check } from "lucide-react";
 import ReportDetailModal from "./ReportDetailModal";
 
 const STATUS_CFG = {
@@ -173,19 +173,14 @@ function EditableCell({ reportId, field, value, onEdit, cls }) {
   );
 }
 
-const PAGE_SIZE = 10;
-
 export default function FeedbackTable({ reports, selected, onSelect, okReviewed, onInlineOk, onSendToFaculty, onHODApprove, onFieldEdit, onDeleteReport, hodUser, vcUser, submittedIds }) {
   const reviewed = okReviewed || new Set();
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [viewReport, setViewReport] = useState(null);
 
   const filtered = reports.filter(r =>
     !search || r.facultyName?.toLowerCase().includes(search.toLowerCase()) || r.subjectCode?.toLowerCase().includes(search.toLowerCase())
   );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const isSubmitted = (reportId) => submittedIds && submittedIds.has(String(reportId));
   const selectableIds = reports.filter(r => (r.status === "processed" || r.status === "faculty_approved") && !isSubmitted(r._id)).map(r => r._id);
 
@@ -222,20 +217,16 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
 
   return (
     <div className="card overflow-hidden animate-slide-up">
-      {/* Search + pagination header */}
+      {/* Search + record count header */}
       <div className="px-5 py-3.5 border-b bg-slate-50/80 flex flex-wrap gap-3 items-center justify-between">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" placeholder="Search faculty or subject..."
             className="input input-search max-w-xs text-xs py-2 pl-9"
-            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+            value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span className="font-medium">{filtered.length} records</span>
-          <span className="text-slate-300">·</span>
-          <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} className="btn-icon btn-ghost p-1 disabled:opacity-30"><ChevronLeft size={14}/></button>
-          <span>Page {page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages} className="btn-icon btn-ghost p-1 disabled:opacity-30"><ChevronRight size={14}/></button>
         </div>
       </div>
 
@@ -259,13 +250,13 @@ export default function FeedbackTable({ reports, selected, onSelect, okReviewed,
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {paginated.map((report, idx) => {
+            {filtered.map((report, idx) => {
               const { code, batch } = parseCodeBatch(report.subjectCode);
               const deletable = canDelete(report);
               return (
                 <tr key={report._id} className={`table-row align-top ${selected.includes(report._id) ? "bg-indigo-50/60" : ""}`}>
                   <td className="px-3 py-3 w-8"><input type="checkbox" checked={selected.includes(report._id)} onChange={() => toggleSelect(report._id)} disabled={(report.status!=="processed" && report.status!=="faculty_approved") || isSubmitted(report._id)} className="rounded accent-indigo-600" /></td>
-                  <td className="px-3 py-3 text-slate-400 text-xs font-medium w-12">{(page-1)*PAGE_SIZE+idx+1}</td>
+                  <td className="px-3 py-3 text-slate-400 text-xs font-medium w-12">{idx+1}</td>
                   <td className="px-3 py-3 font-semibold text-slate-800 text-xs min-w-[120px] whitespace-normal">
                     <EditableCell reportId={report._id} field="facultyName" value={report.facultyName} onEdit={onFieldEdit} cls="font-semibold" />
                   </td>

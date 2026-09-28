@@ -388,18 +388,30 @@ async function analyzeCommentsWithAI(rawComments) {
   if (toClassifyWithAI.length > 0) {
     toClassifyWithAI.forEach(({ comment }) => {
       const lower = comment.toLowerCase();
-      const hasNegativeTrait = NEGATIVE_PATTERNS.some(p => p.test(lower)) ||
-        /\b(not|never|hardly|don't|doesn't|didn't|can't|cannot|less|poor|improve|issue|problem|slow|fast|rude|absent|late|lack|difficult|hard)\b/i.test(lower);
 
-      const hasPositiveTrait = POSITIVE_PATTERNS.some(p => p.test(lower)) ||
-        /\b(good|great|nice|excellent|best|helpful|clear|interactive|supportive|punctual|effective|understand|wonderful|awesome|thanks|accha|mast)\b/i.test(lower);
+      // Strong negatives: explicit problem words / negative patterns
+      const hasStrongNegative = NEGATIVE_PATTERNS.some(p => p.test(lower)) ||
+        /\b(not\s+good|not\s+great|not\s+clear|not\s+helpful|not\s+effective|poor|improve|improvement|issue|problem|rude|absent|irregular|lack|difficult|hard\s+to\s+understand|slow|late|boring|monoton|more\s+practical|more\s+example|more\s+interact|better\s+explanation|better\s+teaching)\b/i.test(lower);
 
-      if (hasNegativeTrait && !hasPositiveTrait) {
+      // Weak negatives: "not", "never", "hardly", etc. in context
+      const hasWeakNegative = !hasStrongNegative &&
+        /\b(never|hardly|don't|doesn't|didn't|can't|cannot)\b/i.test(lower);
+
+      const hasNegativeTrait = hasStrongNegative || hasWeakNegative;
+
+      // Positive words — only count as positive if NO strong negative present
+      const hasPositiveTrait = !hasStrongNegative && (
+        POSITIVE_PATTERNS.some(p => p.test(lower)) ||
+        /\b(good|great|nice|excellent|best|helpful|clear|interactive|supportive|punctual|effective|understand|wonderful|awesome|thanks|accha|mast)\b/i.test(lower)
+      );
+
+      if (hasNegativeTrait) {
+        // Any negative trait → needs attention (strong negative beats mild positive)
         addAttention(comment);
-      } else if (hasNegativeTrait && hasPositiveTrait) {
-        // Mixed sentiment with negative indicator -> flag for attention
-        addAttention(comment);
+      } else if (hasPositiveTrait) {
+        result.appreciation.push(comment);
       } else {
+        // Neutral / unknown → appreciation (safe default for ambiguous praise)
         result.appreciation.push(comment);
       }
     });

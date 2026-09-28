@@ -426,9 +426,16 @@ async function extractMetaFromBuffer(buffer) {
 
         const recordItems = items.filter(i => i.y <= dataY + 3 && i.y >= minY);
 
-        const facultyParts = recordItems.filter(i => i.x >= 45 && i.x < 135).sort((a,b) => b.y - a.y).map(i => i.str);
-        const codeParts    = recordItems.filter(i => i.x >= 135 && i.x < 200).sort((a,b) => b.y - a.y).map(i => i.str);
-        const progParts    = recordItems.filter(i => i.x >= 200 && i.x < 270).sort((a,b) => b.y - a.y).map(i => i.str);
+        // Filter helper: exclude metadata noise from data columns
+        const isNoisyText = (s) =>
+          /submitted\s*answers/i.test(s) ||        // "Submitted answers:- 48"
+          /\d{2}\/\d{2}\/\d{4}/.test(s) ||        // date like 04/07/2026
+          /\d{1,2}:\d{2}:\d{2}\s*(AM|PM)/i.test(s) || // time like 17:03:01 PM
+          /^[\d\s.,%:–-]+$/.test(s);               // purely numeric / punctuation
+
+        const facultyParts = recordItems.filter(i => i.x >= 45 && i.x < 135 && !isNoisyText(i.str)).sort((a,b) => b.y - a.y).map(i => i.str);
+        const codeParts    = recordItems.filter(i => i.x >= 135 && i.x < 200 && !isNoisyText(i.str)).sort((a,b) => b.y - a.y).map(i => i.str);
+        const progParts    = recordItems.filter(i => i.x >= 200 && i.x < 270 && !isNoisyText(i.str)).sort((a,b) => b.y - a.y).map(i => i.str);
         const semParts     = recordItems.filter(i => i.x >= 270 && i.x < 298).map(i => i.str);
         const ffiParts     = recordItems.filter(i => i.x >= 295 && i.x < 330).map(i => i.str);
         const respParts    = recordItems.filter(i => i.x >= 330 && i.x < 370).map(i => i.str);
