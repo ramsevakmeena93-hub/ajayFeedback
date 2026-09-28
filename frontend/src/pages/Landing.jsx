@@ -47,7 +47,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-slate-100 overflow-x-hidden">
 
-      {/* ── NAVBAR ── */}
+      {/* ΓöÇΓöÇ NAVBAR ΓöÇΓöÇ */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
           ? "bg-slate-900/95 backdrop-blur-xl shadow-sm border-b border-slate-800/80"
@@ -104,7 +104,7 @@ export default function Landing() {
         )}
       </header>
 
-      {/* ── HERO ── */}
+      {/* ΓöÇΓöÇ HERO ΓöÇΓöÇ */}
       <section id="home" className="relative min-h-screen flex items-center overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -117,11 +117,11 @@ export default function Landing() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[85vh] py-16">
 
-            {/* Left — Content */}
+            {/* Left ΓÇö Content */}
             <div className="animate-fade-up">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold mb-6">
                 <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                MITS Deemed University — Academic Feedback Platform
+                MITS Deemed University ΓÇö Academic Feedback Platform
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-6">
@@ -159,7 +159,7 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right — Campus image */}
+            {/* Right ΓÇö Campus image */}
             <div className="hidden lg:block animate-fade-up relative" style={{ animationDelay: "200ms" }}>
               <div className="relative">
                 <div
@@ -196,7 +196,7 @@ export default function Landing() {
                   <p className="text-white/80 text-[10px] leading-relaxed">
                     "Honest feedback leads to real improvement."
                   </p>
-                  <p className="text-blue-400 text-[10px] font-semibold mt-1.5">♥ MITS Gwalior</p>
+                  <p className="text-blue-400 text-[10px] font-semibold mt-1.5">ΓÖÑ MITS Gwalior</p>
                 </div>
               </div>
             </div>
@@ -212,7 +212,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── STATS BAR ── */}
+      {/* ΓöÇΓöÇ STATS BAR ΓöÇΓöÇ */}
       <section className="bg-slate-900 border-y border-slate-800 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -222,7 +222,7 @@ export default function Landing() {
                   <stat.icon size={18} className={stat.color} />
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-white leading-none">{counted ? stat.value : "—"}</p>
+                  <p className="text-2xl font-black text-white leading-none">{counted ? stat.value : "ΓÇö"}</p>
                   <p className="text-slate-500 text-xs font-medium mt-0.5">{stat.label}</p>
                 </div>
               </div>
@@ -231,7 +231,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── CTA BANNER ── */}
+      {/* ΓöÇΓöÇ CTA BANNER ΓöÇΓöÇ */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-violet-600/10 to-emerald-600/10 pointer-events-none" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
@@ -239,7 +239,7 @@ export default function Landing() {
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-semibold mb-6">
             <Zap size={12} className="text-violet-400" />
-            AI-Powered · Secure · Instant
+            AI-Powered ┬╖ Secure ┬╖ Instant
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
@@ -279,7 +279,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── DEVELOPER SECTION ── */}
+      {/* ΓöÇΓöÇ DEVELOPER SECTION ΓöÇΓöÇ */}
       <section className="py-24 relative overflow-hidden bg-[#0d1326] border-t border-slate-800">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-900/10 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
@@ -306,7 +306,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
+      {/* ΓöÇΓöÇ FOOTER ΓöÇΓöÇ */}
       <footer className="bg-slate-900 border-t border-slate-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -323,7 +323,7 @@ export default function Landing() {
                 </div>
               </div>
               <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
-                An AI-powered faculty feedback management platform for Madhav Institute of Technology &amp; Science, Gwalior — Deemed University.
+                An AI-powered faculty feedback management platform for Madhav Institute of Technology &amp; Science, Gwalior ΓÇö Deemed University.
               </p>
               <button
                 onClick={() => navigate("/login")}
@@ -367,7 +367,7 @@ export default function Landing() {
         <div className="border-t border-slate-800 py-5">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
             <p className="text-slate-600 text-xs">
-              © 2025 Madhav Institute of Technology &amp; Science, Gwalior. All rights reserved.
+              ┬⌐ 2025 Madhav Institute of Technology &amp; Science, Gwalior. All rights reserved.
             </p>
             <p className="text-slate-700 text-xs">
               Developed under the guidance of Dr. Abhishek Dixit, HOD of Centre for CST

@@ -35,7 +35,7 @@ const STEPS = [
     icon: Download,
     color: "bg-rose-600",
     title: "Download PDF Report",
-    desc: "Once approved, HODs can download the complete Action Taken Report PDF with all signatures and analysis — semester-wise.",
+    desc: "Once approved, HODs can download the complete Action Taken Report PDF with all signatures and analysis ΓÇö semester-wise.",
     step: "05"
   },
 ];
@@ -71,7 +71,7 @@ export default function HowItWorks() {
           <h1 className="text-3xl font-extrabold text-[#0d1b3e] mb-3">How It Works</h1>
           <div className="w-16 h-1 bg-blue-500 mx-auto rounded mb-4"/>
           <p className="text-slate-500 text-sm max-w-xl mx-auto">
-            A streamlined 5-step process from CSV upload to final approved PDF report — powered by AI.
+            A streamlined 5-step process from CSV upload to final approved PDF report ΓÇö powered by AI.
           </p>
         </div>
 
@@ -120,7 +120,7 @@ export default function HowItWorks() {
       </main>
 
       <footer className="bg-[#0d1b3e] py-4 text-center">
-        <p className="text-white/40 text-xs">© 2025 Madhav Institute of Technology &amp; Science, Gwalior. All rights reserved.</p>
+        <p className="text-white/40 text-xs">┬⌐ 2025 Madhav Institute of Technology &amp; Science, Gwalior. All rights reserved.</p>
       </footer>
     </div>
   );

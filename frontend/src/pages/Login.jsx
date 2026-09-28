@@ -17,7 +17,7 @@ export default function Login() {
   const { login, user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Already logged in → redirect to dashboard
+  // Already logged in ΓåÆ redirect to dashboard
   useEffect(() => {
     if (user) go(user.activeWorkspace || user.role);
   }, [user]);
@@ -70,7 +70,7 @@ export default function Login() {
         credential: response.credential,
       });
       login(data.user, data.token);
-      toast.success(`Welcome back, ${data.user.name || "User"}! 🎉`);
+      toast.success(`Welcome back, ${data.user.name || "User"}! ≡ƒÄë`);
       go(data.user.activeWorkspace || data.user.role);
     } catch (err) {
       toast.error(
@@ -96,7 +96,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-[#0a0f1e]">
-      {/* ── Left Branding Panel ── */}
+      {/* ΓöÇΓöÇ Left Branding Panel ΓöÇΓöÇ */}
       <div className="hidden lg:flex lg:w-[45%] flex-col relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 opacity-90" />
         <div className="absolute inset-0 bg-[#0a0f1e]/30" />
@@ -159,12 +159,12 @@ export default function Login() {
           </div>
 
           <p className="text-white/30 text-xs">
-            Faculty Feedback Analysis System · MITS Gwalior
+            Faculty Feedback Analysis System ┬╖ MITS Gwalior
           </p>
         </div>
       </div>
 
-      {/* ── Right Login Form Panel ── */}
+      {/* ΓöÇΓöÇ Right Login Form Panel ΓöÇΓöÇ */}
       <div className="flex-1 flex flex-col">
         <div className="px-6 lg:px-10 py-5 flex items-center justify-between">
           <button
@@ -177,7 +177,7 @@ export default function Login() {
             to="/register"
             className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition"
           >
-            Create an Account →
+            Create an Account ΓåÆ
           </Link>
         </div>
 

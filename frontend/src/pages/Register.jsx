@@ -10,10 +10,10 @@ import {
 import mitsLogo from "../assets/mits-logo.png";
 
 const ROLES = [
-  { value: "faculty",  label: "Faculty Member",     icon: "👨‍🏫", desc: "Submit & track feedback forms"    },
-  { value: "hod",      label: "Head of Department",  icon: "🏛️",  desc: "Review and approve HOD reports"  },
-  { value: "vc",       label: "Pro Vice-Chancellor",     icon: "🎓",  desc: "View final VC-level reports"     },
-  { value: "admin",    label: "Administrator",       icon: "🛡️",  desc: "Manage users and system config"  },
+  { value: "faculty",  label: "Faculty Member",     icon: "≡ƒæ¿ΓÇì≡ƒÅ½", desc: "Submit & track feedback forms"    },
+  { value: "hod",      label: "Head of Department",  icon: "≡ƒÅ¢∩╕Å",  desc: "Review and approve HOD reports"  },
+  { value: "vc",       label: "Pro Vice-Chancellor",     icon: "≡ƒÄô",  desc: "View final VC-level reports"     },
+  { value: "admin",    label: "Administrator",       icon: "≡ƒ¢í∩╕Å",  desc: "Manage users and system config"  },
 ];
 
 const DEPARTMENTS = [
@@ -65,7 +65,7 @@ export default function Register() {
     try {
       const { data } = await axios.post("/api/auth/register", form);
       login(data.user, data.token);
-      toast.success(`Account created! Welcome, ${data.user.name?.split(" ")[0]}! 🎉`);
+      toast.success(`Account created! Welcome, ${data.user.name?.split(" ")[0]}! ≡ƒÄë`);
       const dest =
         data.user.role === "vc"      ? "/vc"
         : data.user.role === "faculty" ? "/faculty"
@@ -82,7 +82,7 @@ export default function Register() {
   return (
     <div className="min-h-screen flex bg-[#0a0f1e] overflow-hidden">
 
-      {/* ── Left branding panel ── */}
+      {/* ΓöÇΓöÇ Left branding panel ΓöÇΓöÇ */}
       <div className="hidden lg:flex lg:w-[42%] flex-col relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-violet-700 to-blue-600 opacity-90" />
         <div className="absolute inset-0 bg-[#0a0f1e]/30" />
@@ -140,12 +140,12 @@ export default function Register() {
           </div>
 
           <div className="text-white/40 text-xs">
-            Demo Mode · MITS Faculty Feedback System 2025–26
+            Demo Mode ┬╖ MITS Faculty Feedback System 2025ΓÇô26
           </div>
         </div>
       </div>
 
-      {/* ── Right register panel ── */}
+      {/* ΓöÇΓöÇ Right register panel ΓöÇΓöÇ */}
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* Top bar */}
         <div className="flex items-center px-6 lg:px-10 py-5 shrink-0">
@@ -338,7 +338,7 @@ export default function Register() {
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Creating account…
+                    Creating accountΓÇª
                   </>
                 ) : (
                   "Create Account"

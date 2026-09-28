@@ -9,7 +9,7 @@ const Developer = () => {
   return (
     <div className="min-h-screen bg-[#03050a] flex flex-col text-slate-100 relative overflow-hidden font-sans selection:bg-indigo-500/30">
       
-      {/* ── 3D / Animated Background ── */}
+      {/* ΓöÇΓöÇ 3D / Animated Background ΓöÇΓöÇ */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[150px] animate-pulse" style={{ animationDuration: '8s' }} />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/20 blur-[150px] animate-pulse" style={{ animationDuration: '10s' }} />
@@ -29,7 +29,7 @@ const Developer = () => {
               <p className="font-bold text-slate-100 text-sm tracking-wide">MITS Feedback System</p>
             </a>
             <a href="/landing" className="text-xs text-slate-400 hover:text-white font-medium transition-colors flex items-center gap-1">
-              <span>←</span> Back to Home
+              <span>ΓåÉ</span> Back to Home
             </a>
           </div>
         </header>
@@ -58,7 +58,7 @@ const Developer = () => {
           {/* Main Grid */}
           <div className="grid lg:grid-cols-3 gap-6">
 
-            {/* Left — Profile Card */}
+            {/* Left ΓÇö Profile Card */}
             <div className="lg:col-span-1 perspective-1000">
               <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-[0_4px_16px_0_rgba(0,0,0,0.36)] p-5 border border-white/10 sticky top-6 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(79,70,229,0.5)] hover:border-indigo-500/50 group">
                 {/* Profile Image */}
@@ -132,7 +132,7 @@ const Developer = () => {
               </div>
             </div>
 
-            {/* Right — Details */}
+            {/* Right ΓÇö Details */}
             <div className="lg:col-span-2 space-y-8 perspective-1000">
 
               {/* Education */}
@@ -147,7 +147,7 @@ const Developer = () => {
                 <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 border-l-4 border-l-indigo-500 hover:bg-white/[0.06] transition-colors duration-300">
                   <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
                     <h3 className="text-lg font-bold text-white tracking-wide">Madhav Institute of Technology & Science</h3>
-                    <span className="text-xs font-bold text-indigo-300 bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.2)]">2025 – 2029</span>
+                    <span className="text-xs font-bold text-indigo-300 bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.2)]">2025 ΓÇô 2029</span>
                   </div>
                   <p className="text-indigo-400 font-semibold text-sm mb-3">B.Tech in Computer Science & Technology</p>
                   <div className="flex items-center gap-2 text-xs bg-black/20 p-2 rounded-md border border-white/5 w-fit">
@@ -170,7 +170,7 @@ const Developer = () => {
                 <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 border-l-4 border-l-blue-500 hover:bg-white/[0.06] transition-colors duration-300">
                   <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
                     <h3 className="text-lg font-bold text-white tracking-wide">Software Intern</h3>
-                    <span className="text-xs font-bold text-blue-300 bg-blue-500/20 border border-blue-500/30 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.2)]">Nov 2025 – Jan 2026</span>
+                    <span className="text-xs font-bold text-blue-300 bg-blue-500/20 border border-blue-500/30 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.2)]">Nov 2025 ΓÇô Jan 2026</span>
                   </div>
                   <p className="text-blue-400 font-semibold text-sm mb-1.5">Yuga Yatra Retails</p>
                   <p className="text-xs text-slate-400 font-medium flex items-center gap-1.5"><MapPin className="w-3 h-3 text-blue-500" /> Bangalore, India</p>

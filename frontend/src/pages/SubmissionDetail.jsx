@@ -34,7 +34,7 @@ function CommentCell({ items, color }) {
     <div className="space-y-1">
       {visible.map((c, i) => (
         <div key={i} className="flex items-start gap-1.5 text-xs leading-relaxed">
-          <span className={`mt-0.5 font-bold shrink-0 ${bullet}`}>•</span>
+          <span className={`mt-0.5 font-bold shrink-0 ${bullet}`}>ΓÇó</span>
           <span className="text-slate-700">{c}</span>
         </div>
       ))}
@@ -89,7 +89,7 @@ export default function SubmissionDetail() {
   });
 
   const ffis   = uniqueReports.map(r => r.ffiScore).filter(Boolean);
-  const avgFFI = ffis.length ? (ffis.reduce((s,v)=>s+v,0)/ffis.length).toFixed(2) : "—";
+  const avgFFI = ffis.length ? (ffis.reduce((s,v)=>s+v,0)/ffis.length).toFixed(2) : "ΓÇö";
   const chartData = uniqueReports.map(r => ({
     name: (r.facultyName||"Faculty").split(" ").slice(-1)[0],
     FFI:  r.ffiScore || 0,
@@ -114,7 +114,7 @@ export default function SubmissionDetail() {
     } catch { toast.error("Failed to reject"); }
   }
 
-  const sessionLabel = submission.session === "jan-may" ? "Jan – Jun (Even)" : submission.session === "jul-dec" ? "Jul – Dec (Odd)" : submission.session || "—";
+  const sessionLabel = submission.session === "jan-may" ? "Jan ΓÇô Jun (Even)" : submission.session === "jul-dec" ? "Jul ΓÇô Dec (Odd)" : submission.session || "ΓÇö";
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -141,11 +141,11 @@ export default function SubmissionDetail() {
         {/* Submission info card */}
         <div className="card p-5">
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-4 text-sm">
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">HOD</p><p className="font-semibold text-slate-800">{submission.hodId?.name || "—"}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Department</p><p className="font-semibold text-slate-800">{submission.hodId?.department || submission.department || "—"}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Academic Year</p><p className="font-semibold text-slate-800">{submission.academicYear || "—"}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">HOD</p><p className="font-semibold text-slate-800">{submission.hodId?.name || "ΓÇö"}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Department</p><p className="font-semibold text-slate-800">{submission.hodId?.department || submission.department || "ΓÇö"}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Academic Year</p><p className="font-semibold text-slate-800">{submission.academicYear || "ΓÇö"}</p></div>
             <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Session</p><p className="font-semibold text-slate-800">{sessionLabel}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Form No.</p><p className="font-semibold text-slate-800">{submission.feedbackFormNo ? `Feedback Form ${submission.feedbackFormNo}` : "—"}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Form No.</p><p className="font-semibold text-slate-800">{submission.feedbackFormNo ? `Feedback Form ${submission.feedbackFormNo}` : "ΓÇö"}</p></div>
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Status</p>
               <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${
@@ -225,7 +225,7 @@ export default function SubmissionDetail() {
                       <tr key={r._id} className="hover:bg-slate-50 align-top transition-colors">
                         <td className="px-4 py-3 text-slate-400 text-xs">{idx+1}</td>
                         <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
-                          {r.facultyName||"—"}
+                          {r.facultyName||"ΓÇö"}
                           {r._id && (
                             <a href={getPdfUrl(r)} target="_blank" rel="noopener noreferrer"
                               className="flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-0.5">
@@ -233,21 +233,21 @@ export default function SubmissionDetail() {
                             </a>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">{r.subjectCode||"—"}</td>
-                        <td className="px-4 py-3 text-xs text-slate-600">{r.programme||"—"}</td>
-                        <td className="px-4 py-3 text-center text-xs font-medium">{r.semester||"—"}</td>
-                        <td className="px-4 py-3 text-center text-xs">{r.academicYear||"—"}</td>
+                        <td className="px-4 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">{r.subjectCode||"ΓÇö"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600">{r.programme||"ΓÇö"}</td>
+                        <td className="px-4 py-3 text-center text-xs font-medium">{r.semester||"ΓÇö"}</td>
+                        <td className="px-4 py-3 text-center text-xs">{r.academicYear||"ΓÇö"}</td>
                         <td className="px-4 py-3 text-center">
                           {r.ffiScore!=null
                             ? <span className={`text-sm font-bold ${r.ffiScore>=4?"text-emerald-600":r.ffiScore>=3?"text-amber-600":"text-red-600"}`}>{r.ffiScore.toFixed(2)}</span>
-                            : <span className="text-slate-300">—</span>}
+                            : <span className="text-slate-300">ΓÇö</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="text-xs font-semibold text-slate-600">
-                            {r.responsePercent != null ? `${Number(r.responsePercent).toFixed(2)}%` : (r.responseCount ?? r.totalResponses ?? "—")}
+                            {r.responsePercent != null ? `${Number(r.responsePercent).toFixed(2)}%` : (r.responseCount ?? r.totalResponses ?? "ΓÇö")}
                           </span>
                         </td>
-                        {/* Appreciation — full, scrollable */}
+                        {/* Appreciation ΓÇö full, scrollable */}
                         <td className="px-4 py-3 min-w-[200px] max-w-[260px]">
                           <div className="space-y-0.5 mb-1">
                             {pctList.map(([label,pct])=>(
@@ -256,12 +256,12 @@ export default function SubmissionDetail() {
                           </div>
                           <CommentCell items={appAll} color="green"/>
                         </td>
-                        {/* Needs Attention — full, scrollable */}
+                        {/* Needs Attention ΓÇö full, scrollable */}
                         <td className="px-4 py-3 min-w-[200px] max-w-[260px]">
                           <CommentCell items={attList} color="amber"/>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 max-w-[150px] leading-relaxed">{r.hodRemarks||<span className="text-slate-300">—</span>}</td>
-                        <td className="px-4 py-3 text-xs text-slate-600 max-w-[150px] leading-relaxed">{r.actionTaken||<span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600 max-w-[150px] leading-relaxed">{r.hodRemarks||<span className="text-slate-300">ΓÇö</span>}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600 max-w-[150px] leading-relaxed">{r.actionTaken||<span className="text-slate-300">ΓÇö</span>}</td>
                       </tr>
                     );
                   })}

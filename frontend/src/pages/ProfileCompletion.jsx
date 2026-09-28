@@ -75,7 +75,7 @@ export default function ProfileCompletion() {
       // If role changed, update it via admin-level patch won't work for self,
       // so we use the profile endpoint with role stored locally
       if (form.role !== user?.role) {
-        // Call workspace switch — backend validates the role from UserRole collection
+        // Call workspace switch ΓÇö backend validates the role from UserRole collection
         // For new Google users we just update their stored role locally and in DB
         await api.patch("/api/auth/profile", { }).catch(() => {});
       }
@@ -94,7 +94,7 @@ export default function ProfileCompletion() {
       };
       updateUser(updatedUser);
 
-      toast.success("Profile completed! Welcome 🎉");
+      toast.success("Profile completed! Welcome ≡ƒÄë");
       redirect(form.role);
     } catch {
       toast.error("Failed to save profile");
@@ -250,7 +250,7 @@ export default function ProfileCompletion() {
                 className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 transition-all shadow-lg"
               >
                 {saving
-                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />SavingΓÇª</>
                   : <>Complete Profile <ArrowRight size={14} /></>}
               </button>
             </div>
@@ -259,7 +259,7 @@ export default function ProfileCompletion() {
 
         <div className="flex items-center justify-center gap-2 mt-4">
           <img src={mitsLogo} alt="MITS" className="w-5 h-5 object-contain opacity-40" />
-          <p className="text-slate-600 text-xs">MITS Faculty Feedback System · 2025–26</p>
+          <p className="text-slate-600 text-xs">MITS Faculty Feedback System ┬╖ 2025ΓÇô26</p>
         </div>
       </div>
     </div>
